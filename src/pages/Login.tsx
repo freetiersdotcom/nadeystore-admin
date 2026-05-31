@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { getAgencyMode, setAgencyMode, getLocale, setLocale } from '../lib/store';
-import { useTranslations } from '../lib/i18n';
+import { useT } from '../lib/locale-context';
 
 type LoginProps = {
   onLogin: (apiUrl: string, apiKey: string) => Promise<void>;
@@ -16,7 +16,7 @@ const DEV_FALLBACK = 'http://localhost:8787';
 
 export function Login({ onLogin }: LoginProps) {
   const [locale, setLocaleState] = useState<'fr' | 'en'>(getLocale());
-  const t = useTranslations(locale);
+  const t = useT();
 
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
