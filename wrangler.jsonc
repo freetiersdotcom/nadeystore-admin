@@ -4,8 +4,4 @@
   "assets": {
     "directory": "./dist",
   },
-  "vars": {
-	"VITE_STORE_NAME": "Nadey Store",
-	"VITE_API_URL": "https://nadeystore-api.freetiers-com.workers.dev"
-  },
 }
