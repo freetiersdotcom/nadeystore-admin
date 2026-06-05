@@ -72,7 +72,7 @@ export default function App() {
     if (hasEnvUrl) {
       setAuth(apiKey);
     } else {
-      setAuthWithUrl(apiUrl, apiKey);
+      setAuthWithUrl(apiUrl || 'http://localhost:8787', apiKey);
     }
     try {
       await api.getOrders({ limit: 1 });
