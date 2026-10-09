@@ -40,6 +40,11 @@ export type Order = {
   id: string;
   number?: string;
   status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'refunded' | 'canceled';
+  // True when the order's payment was confirmed after its checkout session
+  // was already auto-expired for inactivity — its inventory hold was
+  // released, so stock should be verified by hand before fulfilling.
+  needs_review?: boolean;
+  review_reason?: string | null;
   customer_email: string;
   customer_id?: string | null;
   shipping?: {
@@ -310,12 +315,13 @@ export type OrderDownloads = {
 
 export const api = {
   // Orders
-  async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string }) {
+  async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean }) {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.status) searchParams.set('status', params.status);
     if (params?.email) searchParams.set('email', params.email);
+    if (params?.needsReview !== undefined) searchParams.set('needs_review', String(params.needsReview));
     const query = searchParams.toString();
     return request<PaginatedResponse<Order>>(`/v1/orders${query ? `?${query}` : ''}`);
   },
@@ -326,7 +332,7 @@ export const api = {
 
   async updateOrder(
     id: string,
-    data: { status?: string; tracking_number?: string; tracking_url?: string }
+    data: { status?: string; tracking_number?: string; tracking_url?: string; needs_review?: boolean }
   ) {
     return request<Order>(`/v1/orders/${id}`, {
       method: 'PATCH',
@@ -340,7 +346,7 @@ export const api = {
       body: JSON.stringify(amount_cents ? { amount_cents } : {}),
     });
   },
-  
+
   /*
 	async reissueDownload(orderId: string, sku: string) {
     return request<{ token: string; expires_at: string; download_url: string }>(

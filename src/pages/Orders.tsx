@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Truck,
   ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 import { api, Order } from '../lib/api';
 import { formatPrice } from '../lib/format';
@@ -45,12 +46,18 @@ export function Orders() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Fetch orders
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['orders', statusFilter],
-    queryFn: () => api.getOrders({ limit: 100, status: statusFilter || undefined }),
+    queryKey: ['orders', statusFilter, needsReviewOnly],
+    queryFn: () =>
+      api.getOrders({
+        limit: 100,
+        status: statusFilter || undefined,
+        needsReview: needsReviewOnly || undefined,
+      }),
   });
 
   const orders = data?.items || [];
@@ -96,10 +103,21 @@ export function Orders() {
       columnHelper.accessor('status', {
         header: t('orders.col.status'),
         cell: (info) => (
-          <StatusBadge
-            status={info.getValue()}
-            label={t(`orders.status.${info.getValue()}` as Parameters<typeof t>[0])}
-          />
+          <div className="flex items-center gap-2">
+            <StatusBadge
+              status={info.getValue()}
+              label={t(`orders.status.${info.getValue()}` as Parameters<typeof t>[0])}
+            />
+            {info.row.original.needs_review && (
+              <span
+                title={t('orders.needsReview.banner')}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+              >
+                <AlertTriangle size={12} />
+                {t('orders.needsReview.badge')}
+              </span>
+            )}
+          </div>
         ),
       }),
       columnHelper.accessor((row) => row.amounts.total_cents, {
@@ -189,6 +207,20 @@ export function Orders() {
               </option>
             ))}
           </select>
+
+          {/* Needs-review filter */}
+          <button
+            onClick={() => setNeedsReviewOnly((v) => !v)}
+            className="h-full flex items-center gap-1.5 px-4 py-3 font-mono text-sm border-l focus:outline-none"
+            style={{
+              borderColor: 'var(--border)',
+              color: needsReviewOnly ? 'var(--text)' : 'var(--text-muted)',
+              background: needsReviewOnly ? 'rgba(217, 119, 6, 0.1)' : 'transparent',
+            }}
+          >
+            <AlertTriangle size={14} />
+            {t('orders.filter.needsReview')}
+          </button>
         </div>
 
         {/* Table */}
@@ -273,6 +305,41 @@ export function Orders() {
               status={selectedOrder.status}
               label={t(`orders.status.${selectedOrder.status}` as Parameters<typeof t>[0])}
             />
+
+            {/* Needs-review banner */}
+            {selectedOrder.needs_review && (
+              <div
+                className="flex items-start gap-2 p-3 rounded-lg text-sm"
+                style={{
+                  background: 'rgba(217, 119, 6, 0.1)',
+                  border: '1px solid rgba(217, 119, 6, 0.3)',
+                  color: 'var(--text)',
+                }}
+              >
+                <AlertTriangle size={16} className="flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div className="flex-1">
+                  <p className="font-medium">{t('orders.needsReview.banner')}</p>
+                  {selectedOrder.review_reason && (
+                    <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+                      {selectedOrder.review_reason}
+                    </p>
+                  )}
+                  <button
+                    onClick={() =>
+                      updateMutation.mutate({
+                        id: selectedOrder.id,
+                        data: { needs_review: false },
+                      })
+                    }
+                    disabled={updateMutation.isPending}
+                    className="mt-2 text-xs font-medium underline hover:no-underline disabled:opacity-50"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    {t('orders.needsReview.dismiss')}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Two column layout */}
             <div className="grid grid-cols-2 gap-5">
