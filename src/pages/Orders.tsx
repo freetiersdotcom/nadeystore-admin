@@ -19,8 +19,9 @@ import {
   Truck,
   ExternalLink,
   AlertTriangle,
+  Banknote,
 } from 'lucide-react';
-import { api, Order } from '../lib/api';
+import { api, Order, RefundMethod } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
@@ -38,6 +39,20 @@ const ORDER_STATUSES = [
   'refunded',
   'canceled',
 ] as const;
+
+const REFUNDABLE_STATUSES = ['paid', 'processing', 'shipped', 'delivered'] as const;
+
+const REFUND_METHODS: RefundMethod[] = [
+  'mtn_momo_dashboard',
+  'mobile_money_transfer',
+  'bank_transfer',
+  'card_dashboard',
+  'cash',
+  'other',
+];
+
+// Currencies whose smallest unit is the whole currency (amounts are stored as-is).
+const ZERO_DECIMAL = new Set(['XOF', 'GNF', 'JPY', 'KRW', 'VND']);
 
 export function Orders() {
   const queryClient = useQueryClient();
@@ -80,6 +95,71 @@ export function Orders() {
       setSelectedOrder(null);
     },
   });
+
+  // Manual refund recording
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>('mtn_momo_dashboard');
+  const [refundReference, setRefundReference] = useState('');
+  const [refundNote, setRefundNote] = useState('');
+  const [refundError, setRefundError] = useState<string | null>(null);
+
+  const { data: refundData } = useQuery({
+    queryKey: ['order-refunds', selectedOrder?.id],
+    queryFn: () => api.getOrderRefunds(selectedOrder!.id),
+    enabled: !!selectedOrder,
+  });
+
+  const manualRefundMutation = useMutation({
+    mutationFn: (vars: { id: string; body: Parameters<typeof api.recordManualRefund>[1] }) =>
+      api.recordManualRefund(vars.id, vars.body),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order-refunds', selectedOrder?.id] });
+      setSelectedOrder((o) => (o ? { ...o, status: res.order_status } : o));
+      setRefundOpen(false);
+    },
+    onError: (e: unknown) => {
+      setRefundError(e instanceof Error ? e.message : String(e));
+    },
+  });
+
+  function openRefundDialog() {
+    setRefundAmount('');
+    setRefundMethod('mtn_momo_dashboard');
+    setRefundReference('');
+    setRefundNote('');
+    setRefundError(null);
+    setRefundOpen(true);
+  }
+
+  function submitManualRefund() {
+    if (!selectedOrder || !refundData) return;
+    const currency = selectedOrder.amounts.currency;
+    const factor = ZERO_DECIMAL.has((currency || '').toUpperCase()) ? 1 : 100;
+
+    let amount_cents: number | undefined;
+    if (refundAmount.trim() !== '') {
+      const parsed = Number(refundAmount.replace(',', '.'));
+      amount_cents = Math.round(parsed * factor);
+      if (!Number.isFinite(parsed) || amount_cents <= 0 || amount_cents > refundData.remaining_cents) {
+        setRefundError(t('orders.refund.invalidAmount'));
+        return;
+      }
+    }
+    if (!confirm(t('orders.refund.confirm'))) return;
+
+    setRefundError(null);
+    manualRefundMutation.mutate({
+      id: selectedOrder.id,
+      body: {
+        amount_cents,
+        method: refundMethod,
+        reference: refundReference.trim() || undefined,
+        note: refundNote.trim() || undefined,
+      },
+    });
+  }
 
   const columns = useMemo(
     () => [
@@ -571,6 +651,47 @@ export function Orders() {
               </div>
             </div>
 
+            {/* Refund history */}
+            {refundData && (refundData.items.length > 0 || refundData.refunded_cents > 0) && (
+              <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                <h4
+                  className="text-xs font-medium uppercase tracking-wide mb-2"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {t('orders.refund.history')}
+                </h4>
+                <ul className="space-y-2">
+                  {refundData.items.map((r) => (
+                    <li key={r.id} className="text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-mono">
+                          {formatPrice(r.amount_cents, selectedOrder.amounts.currency)}
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {r.source === 'manual'
+                            ? t('orders.refund.sourceManual')
+                            : t('orders.refund.sourceStripe')}
+                          {r.method &&
+                            ` · ${t(`orders.refund.method.${r.method}` as Parameters<typeof t>[0])}`}
+                          {' · '}
+                          {new Date(r.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {(r.reference || r.note) && (
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          {[r.reference, r.note].filter(Boolean).join(' — ')}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                  {t('orders.refund.remaining')}:{' '}
+                  {formatPrice(refundData.remaining_cents, selectedOrder.amounts.currency)}
+                </p>
+              </div>
+            )}
+
             {/* Footer: Timestamp + Refund */}
             <div
               className="flex items-center justify-between pt-4 border-t"
@@ -579,19 +700,137 @@ export function Orders() {
               <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                 {t('common.createdAt')} {new Date(selectedOrder.created_at).toLocaleString()}
               </p>
-              {selectedOrder.status === 'paid' && selectedOrder.stripe?.payment_intent_id && (
-                <button
-                  onClick={() => {
-                    if (confirm(t('orders.detail.refundConfirm'))) {
-                      refundMutation.mutate(selectedOrder.id);
-                    }
-                  }}
-                  disabled={refundMutation.isPending}
-                  className="text-sm font-medium text-red-500 hover:text-red-600 disabled:opacity-50"
-                >
-                  {refundMutation.isPending ? t('common.loading') : t('orders.detail.refund')}
-                </button>
-              )}
+              <div className="flex items-center gap-4">
+                {(REFUNDABLE_STATUSES as readonly string[]).includes(selectedOrder.status) &&
+                  (refundData?.remaining_cents ?? 1) > 0 && (
+                    <button
+                      onClick={openRefundDialog}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      <Banknote size={14} />
+                      {t('orders.refund.manual')}
+                    </button>
+                  )}
+                {selectedOrder.status === 'paid' && selectedOrder.stripe?.payment_intent_id && (
+                  <button
+                    onClick={() => {
+                      if (confirm(t('orders.detail.refundConfirm'))) {
+                        refundMutation.mutate(selectedOrder.id);
+                      }
+                    }}
+                    disabled={refundMutation.isPending}
+                    className="text-sm font-medium text-red-500 hover:text-red-600 disabled:opacity-50"
+                  >
+                    {refundMutation.isPending ? t('common.loading') : t('orders.detail.refund')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Manual refund dialog */}
+      <Modal
+        open={refundOpen && !!selectedOrder}
+        onClose={() => setRefundOpen(false)}
+        title={t('orders.refund.modalTitle')}
+        size="sm"
+      >
+        {selectedOrder && (
+          <div className="p-6 space-y-4">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {t('orders.refund.help')}
+            </p>
+
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                {t('orders.refund.amount')} ({selectedOrder.amounts.currency})
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                placeholder={
+                  refundData
+                    ? formatPrice(refundData.remaining_cents, selectedOrder.amounts.currency)
+                    : ''
+                }
+                className="w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                {t('orders.refund.amountHint')}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                {t('orders.refund.method')}
+              </label>
+              <select
+                value={refundMethod}
+                onChange={(e) => setRefundMethod(e.target.value as RefundMethod)}
+                className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              >
+                {REFUND_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`orders.refund.method.${m}` as Parameters<typeof t>[0])}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                {t('orders.refund.reference')}
+              </label>
+              <input
+                type="text"
+                value={refundReference}
+                maxLength={200}
+                onChange={(e) => setRefundReference(e.target.value)}
+                placeholder={t('orders.refund.referencePh')}
+                className="w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-secondary)' }}>
+                {t('orders.refund.note')}
+              </label>
+              <textarea
+                value={refundNote}
+                maxLength={500}
+                rows={2}
+                onChange={(e) => setRefundNote(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              />
+            </div>
+
+            {refundError && <p className="text-sm text-red-500">{refundError}</p>}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setRefundOpen(false)}
+                className="px-4 py-2 text-sm rounded-lg hover:underline"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={submitManualRefund}
+                disabled={manualRefundMutation.isPending || !refundData}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                style={{ background: 'var(--accent)' }}
+              >
+                {manualRefundMutation.isPending ? t('common.loading') : t('orders.refund.submit')}
+              </button>
             </div>
           </div>
         )}

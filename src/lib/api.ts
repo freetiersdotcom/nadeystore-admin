@@ -85,6 +85,38 @@ export type Order = {
   created_at: string;
 };
 
+export type RefundMethod =
+  | 'mtn_momo_dashboard'
+  | 'mobile_money_transfer'
+  | 'bank_transfer'
+  | 'card_dashboard'
+  | 'cash'
+  | 'other';
+
+export type RefundRecord = {
+  id: string;
+  source: 'stripe' | 'manual';
+  method: string | null;
+  reference: string | null;
+  note: string | null;
+  amount_cents: number;
+  status: string;
+  created_at: string;
+};
+
+export type OrderRefunds = {
+  items: RefundRecord[];
+  refunded_cents: number;
+  remaining_cents: number;
+};
+
+export type ManualRefundInput = {
+  amount_cents?: number;
+  method: RefundMethod;
+  reference?: string;
+  note?: string;
+};
+
 export type Customer = {
   id: string;
   email: string;
@@ -337,6 +369,22 @@ export const api = {
     return request<Order>(`/v1/orders/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  },
+
+  async getOrderRefunds(id: string) {
+    return request<OrderRefunds>(`/v1/orders/${id}/refunds`);
+  },
+
+  async recordManualRefund(id: string, body: ManualRefundInput) {
+    return request<{
+      refund: RefundRecord;
+      order_status: Order['status'];
+      refunded_cents: number;
+      remaining_cents: number;
+    }>(`/v1/orders/${id}/refunds/manual`, {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
   },
 
