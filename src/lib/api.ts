@@ -153,6 +153,10 @@ export type Product = {
   id: string;
   title: string;
   description: string | null;
+  slug: string | null;
+  description_fr: string | null;
+  description_en: string | null;
+  tags: string[] | null;
   status: 'active' | 'draft';
   created_at: string;
   variants: Variant[];
@@ -443,14 +447,25 @@ export const api = {
     return request<Product>(`/v1/products/${id}`);
   },
 
-  async createProduct(data: { title: string; description?: string }) {
+  async createProduct(data: { title: string; description?: string; tags?: string[] }) {
     return request<Product>('/v1/products', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async updateProduct(id: string, data: { title?: string; description?: string; status?: string }) {
+  async updateProduct(
+    id: string,
+    data: {
+      title?: string;
+      description?: string | null;
+      slug?: string;
+      description_fr?: string | null;
+      description_en?: string | null;
+      tags?: string[] | null;
+      status?: string;
+    }
+  ) {
     return request<Product>(`/v1/products/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

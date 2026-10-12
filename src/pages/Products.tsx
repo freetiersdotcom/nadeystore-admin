@@ -39,6 +39,39 @@ const columnHelper = createColumnHelper<Product>();
 
 const ACCEPTED_ASSET_TYPES = '.pdf,.zip,.epub,.mp4,.mp3,.docx,.xlsx';
 
+// Same rules as the API's slugify(): strip accents, lowercase, hyphens between words.
+function slugify(input: string): string {
+  return input
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+// "Skincare, bestseller ,skincare" -> ['Skincare', 'bestseller']
+function parseTags(input: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input.split(',')) {
+    const tag = raw.trim();
+    const key = tag.toLowerCase();
+    if (tag && !seen.has(key)) {
+      seen.add(key);
+      out.push(tag);
+    }
+  }
+  return out;
+}
+
+const sameTags = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+const fieldClass = 'w-full px-3 py-2 text-sm font-mono rounded-lg focus:outline-none focus:ring-2';
+const fieldStyle = { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' } as const;
+const labelClass = 'block text-xs font-medium uppercase tracking-wide mb-2';
+const labelStyle = { color: 'var(--text-secondary)' } as const;
+const helpStyle = { color: 'var(--text-muted)' } as const;
+
 export function Products() {
   const t = useT();
   const queryClient = useQueryClient();
@@ -54,6 +87,8 @@ export function Products() {
   // Product form
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newTags, setNewTags] = useState('');
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   // Variant form — image mirrors the existing pattern exactly
   const [variantSku, setVariantSku] = useState('');
@@ -85,12 +120,13 @@ export function Products() {
   const products = data?.items || [];
 
   const createMutation = useMutation({
-    mutationFn: (data: { title: string; description?: string }) => api.createProduct(data),
+    mutationFn: (data: { title: string; description?: string; tags?: string[] }) => api.createProduct(data),
     onSuccess: (product) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setCreateModal(false);
       setNewTitle('');
       setNewDescription('');
+      setNewTags('');
       setSelectedProduct(product);
     },
   });
@@ -236,7 +272,12 @@ export function Products() {
 
   const handleCreateProduct = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate({ title: newTitle, description: newDescription || undefined });
+    const tags = parseTags(newTags);
+    createMutation.mutate({
+      title: newTitle,
+      description: newDescription || undefined,
+      tags: tags.length ? tags : undefined,
+    });
   };
 
   const handleVariantSubmit = (e: React.FormEvent) => {
@@ -347,6 +388,11 @@ export function Products() {
       }),
       columnHelper.accessor('description', {
         header: t('products.form.description'),
+        cell: (info) => <span className="font-mono text-sm">{info.getValue() || '—'}</span>,
+      }),
+      columnHelper.accessor((row) => (row.tags ?? []).join(', '), {
+        id: 'tags',
+        header: t('products.form.tags'),
         cell: (info) => <span className="font-mono text-sm">{info.getValue() || '—'}</span>,
       }),
       columnHelper.accessor((row) => row.variants.length, {
@@ -516,6 +562,13 @@ export function Products() {
               className="w-full px-3 py-2 text-sm font-mono rounded-lg focus:outline-none focus:ring-2 resize-none"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
+          <div>
+            <label className={labelClass} style={labelStyle}>{t('products.form.tags')}</label>
+            <input type="text" value={newTags} onChange={(e) => setNewTags(e.target.value)}
+              placeholder={t('products.form.tagsPlaceholder')}
+              className={fieldClass} style={fieldStyle} />
+            <p className="text-xs mt-1" style={helpStyle}>{t('products.form.tagsHelp')}</p>
+          </div>
           <div className="flex gap-2 justify-end pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
             <button type="button" onClick={() => setCreateModal(false)} className="px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
               {t('common.cancel')}
@@ -563,13 +616,78 @@ export function Products() {
               </div>
               <div>
                 <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>
-                  {t('products.form.description')}
+                  {t('products.form.descriptionDefault')}
                 </label>
                 <textarea defaultValue={selectedProduct.description || ''}
                   onBlur={(e) => { if (e.target.value !== (selectedProduct.description || '')) updateProductMutation.mutate({ id: selectedProduct.id, data: { description: e.target.value } }); }}
                   placeholder={t('products.form.description')} rows={2}
                   className="w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2 resize-none"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              </div>
+
+              <div>
+                <label className={labelClass} style={labelStyle}>{t('products.form.descriptionFr')}</label>
+                <textarea key={`fr-${selectedProduct.id}`} defaultValue={selectedProduct.description_fr || ''}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v !== (selectedProduct.description_fr || '')) {
+                      updateProductMutation.mutate({ id: selectedProduct.id, data: { description_fr: v || null } });
+                    }
+                  }}
+                  rows={3} className={`${fieldClass} resize-none`} style={fieldStyle} />
+              </div>
+
+              <div>
+                <label className={labelClass} style={labelStyle}>{t('products.form.descriptionEn')}</label>
+                <textarea key={`en-${selectedProduct.id}`} defaultValue={selectedProduct.description_en || ''}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v !== (selectedProduct.description_en || '')) {
+                      updateProductMutation.mutate({ id: selectedProduct.id, data: { description_en: v || null } });
+                    }
+                  }}
+                  rows={3} className={`${fieldClass} resize-none`} style={fieldStyle} />
+              </div>
+
+              <div>
+                <label className={labelClass} style={labelStyle}>{t('products.form.tags')}</label>
+                <input type="text" key={`tags-${selectedProduct.id}-${(selectedProduct.tags ?? []).join('|')}`}
+                  defaultValue={(selectedProduct.tags ?? []).join(', ')}
+                  placeholder={t('products.form.tagsPlaceholder')}
+                  onBlur={(e) => {
+                    const next = parseTags(e.target.value);
+                    const current = selectedProduct.tags ?? [];
+                    if (!sameTags(next, current)) {
+                      updateProductMutation.mutate({ id: selectedProduct.id, data: { tags: next.length ? next : null } });
+                    }
+                  }}
+                  className={fieldClass} style={fieldStyle} />
+                <p className="text-xs mt-1" style={helpStyle}>{t('products.form.tagsHelp')}</p>
+              </div>
+
+              <div>
+                <label className={labelClass} style={labelStyle}>{t('products.form.slug')}</label>
+                <input type="text" key={`slug-${selectedProduct.id}-${selectedProduct.slug ?? ''}`}
+                  defaultValue={selectedProduct.slug || ''}
+                  onBlur={(e) => {
+                    const next = slugify(e.target.value);
+                    if (!next) {
+                      setSlugError(t('products.form.slugInvalid'));
+                      e.target.value = selectedProduct.slug || '';
+                      return;
+                    }
+                    setSlugError(null);
+                    e.target.value = next;
+                    if (next !== (selectedProduct.slug || '')) {
+                      updateProductMutation.mutate({ id: selectedProduct.id, data: { slug: next } });
+                    }
+                  }}
+                  className={fieldClass} style={fieldStyle} />
+                {slugError && <p className="text-xs mt-1 text-red-500">{slugError}</p>}
+                <p className="text-xs mt-1" style={helpStyle}>{t('products.form.slugHelp')}</p>
+                <p className="text-xs mt-1 font-mono" style={helpStyle}>
+                  {t('products.form.pageUrl')}: /fr/produits/{selectedProduct.slug || selectedProduct.id}
+                </p>
               </div>
             </div>
 
