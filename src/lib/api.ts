@@ -157,6 +157,7 @@ export type Product = {
   description_fr: string | null;
   description_en: string | null;
   tags: string[] | null;
+  video_url: string | null;
   status: 'active' | 'draft';
   created_at: string;
   variants: Variant[];
@@ -463,6 +464,7 @@ export const api = {
       description_fr?: string | null;
       description_en?: string | null;
       tags?: string[] | null;
+      video_url?: string | null;
       status?: string;
     }
   ) {

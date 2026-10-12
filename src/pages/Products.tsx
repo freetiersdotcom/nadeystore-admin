@@ -89,6 +89,7 @@ export function Products() {
   const [newDescription, setNewDescription] = useState('');
   const [newTags, setNewTags] = useState('');
   const [slugError, setSlugError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Variant form — image mirrors the existing pattern exactly
   const [variantSku, setVariantSku] = useState('');
@@ -663,6 +664,27 @@ export function Products() {
                   }}
                   className={fieldClass} style={fieldStyle} />
                 <p className="text-xs mt-1" style={helpStyle}>{t('products.form.tagsHelp')}</p>
+              </div>
+
+              <div>
+                <label className={labelClass} style={labelStyle}>{t('products.form.video')}</label>
+                <input type="url" key={`video-${selectedProduct.id}-${selectedProduct.video_url ?? ''}`}
+                  defaultValue={selectedProduct.video_url || ''}
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && !/^https:\/\//i.test(v)) {
+                      setVideoError(t('products.form.videoInvalid'));
+                      return;
+                    }
+                    setVideoError(null);
+                    if (v !== (selectedProduct.video_url || '')) {
+                      updateProductMutation.mutate({ id: selectedProduct.id, data: { video_url: v || null } });
+                    }
+                  }}
+                  className={fieldClass} style={fieldStyle} />
+                {videoError && <p className="text-xs mt-1 text-red-500">{videoError}</p>}
+                <p className="text-xs mt-1" style={helpStyle}>{t('products.form.videoHelp')}</p>
               </div>
 
               <div>
