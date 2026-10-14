@@ -62,16 +62,18 @@ export function Orders() {
   const [globalFilter, setGlobalFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [toScheduleOnly, setToScheduleOnly] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Fetch orders
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['orders', statusFilter, needsReviewOnly],
+    queryKey: ['orders', statusFilter, needsReviewOnly, toScheduleOnly],
     queryFn: () =>
       api.getOrders({
         limit: 100,
         status: statusFilter || undefined,
         needsReview: needsReviewOnly || undefined,
+        serviceStatus: toScheduleOnly ? 'to_schedule' : undefined,
       }),
   });
 
@@ -188,6 +190,13 @@ export function Orders() {
               status={info.getValue()}
               label={t(`orders.status.${info.getValue()}` as Parameters<typeof t>[0])}
             />
+            {info.row.original.service_status === 'to_schedule' && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+              >
+                {t('orders.service.status.to_schedule')}
+              </span>
+            )}
             {info.row.original.needs_review && (
               <span
                 title={t('orders.needsReview.banner')}
@@ -300,6 +309,19 @@ export function Orders() {
           >
             <AlertTriangle size={14} />
             {t('orders.filter.needsReview')}
+          </button>
+
+          {/* Services still to schedule */}
+          <button
+            onClick={() => setToScheduleOnly((v) => !v)}
+            className="h-full flex items-center gap-1.5 px-4 py-3 font-mono text-sm border-l focus:outline-none"
+            style={{
+              borderColor: 'var(--border)',
+              color: toScheduleOnly ? 'var(--text)' : 'var(--text-muted)',
+              background: toScheduleOnly ? 'rgba(15, 107, 75, 0.1)' : 'transparent',
+            }}
+          >
+            {t('orders.filter.toSchedule')}
           </button>
         </div>
 
@@ -419,6 +441,16 @@ export function Orders() {
                   </button>
                 </div>
               </div>
+            )}
+
+            {/* Service follow-up (orders containing a service) */}
+            {selectedOrder.service_status && (
+              <ServicePanel
+                key={selectedOrder.id}
+                order={selectedOrder}
+                pending={updateMutation.isPending}
+                onUpdate={(data) => updateMutation.mutate({ id: selectedOrder.id, data })}
+              />
             )}
 
             {/* Two column layout */}
@@ -835,6 +867,93 @@ export function Orders() {
           </div>
         )}
       </Modal>
+    </div>
+  );
+}
+
+// ─── Service follow-up panel ───────────────────────────────────────────────────
+// Manual follow-up for orders that contain a service (coaching, consultation…):
+// the owner contacts the customer, agrees on a date, and tracks it here.
+
+const SERVICE_STATUSES = ['to_schedule', 'scheduled', 'completed'] as const;
+
+function ServicePanel({
+  order,
+  pending,
+  onUpdate,
+}: {
+  order: Order;
+  pending: boolean;
+  onUpdate: (data: {
+    service_status?: 'to_schedule' | 'scheduled' | 'completed';
+    service_note?: string | null;
+  }) => void;
+}) {
+  const t = useT();
+  const [note, setNote] = useState(order.service_note ?? '');
+  const noteChanged = note.trim() !== (order.service_note ?? '');
+
+  return (
+    <div
+      className="p-3 rounded-lg space-y-3"
+      style={{ background: 'rgba(15, 107, 75, 0.06)', border: '1px solid rgba(15, 107, 75, 0.3)' }}
+    >
+      <div>
+        <h4 className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+          {t('orders.service.title')}
+        </h4>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          {t('orders.service.hint')}
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        {SERVICE_STATUSES.map((s) => {
+          const active = order.service_status === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              disabled={pending || active}
+              onClick={() => onUpdate({ service_status: s })}
+              className="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors disabled:cursor-default"
+              style={{
+                border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                background: active ? 'rgba(245, 199, 71, 0.1)' : 'var(--bg-card)',
+                color: active ? 'var(--text)' : 'var(--text-muted)',
+              }}
+            >
+              {t(`orders.service.status.${s}` as Parameters<typeof t>[0])}
+            </button>
+          );
+        })}
+      </div>
+
+      <div>
+        <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
+          {t('orders.service.note')}
+        </label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t('orders.service.notePlaceholder')}
+          rows={2}
+          maxLength={2000}
+          className="w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+        />
+        {noteChanged && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => onUpdate({ service_note: note.trim() || null })}
+            className="mt-2 text-xs font-medium underline hover:no-underline disabled:opacity-50"
+            style={{ color: 'var(--text)' }}
+          >
+            {t('orders.service.save')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

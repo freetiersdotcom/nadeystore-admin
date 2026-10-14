@@ -45,6 +45,10 @@ export type Order = {
   // released, so stock should be verified by hand before fulfilling.
   needs_review?: boolean;
   review_reason?: string | null;
+  // Manual follow-up of a service item (coaching, consultation…). Null/absent when
+  // the order contains no service.
+  service_status?: 'to_schedule' | 'scheduled' | 'completed' | null;
+  service_note?: string | null;
   customer_email: string;
   customer_id?: string | null;
   shipping?: {
@@ -80,7 +84,7 @@ export type Order = {
     title: string;
     qty: number;
     unit_price_cents: number;
-    product_type?: 'physical' | 'digital';
+    product_type?: 'physical' | 'digital' | 'service';
   }>;
   created_at: string;
 };
@@ -169,7 +173,7 @@ export type Variant = {
   title: string;
   price_cents: number;
   image_url: string | null;
-  product_type: 'physical' | 'digital';
+  product_type: 'physical' | 'digital' | 'service';
   asset_filename?: string | null;
   asset_uploaded_at?: string | null;
   weight_g?: number;
@@ -352,13 +356,14 @@ export type OrderDownloads = {
 
 export const api = {
   // Orders
-  async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean }) {
+  async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean; serviceStatus?: string }) {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.status) searchParams.set('status', params.status);
     if (params?.email) searchParams.set('email', params.email);
     if (params?.needsReview !== undefined) searchParams.set('needs_review', String(params.needsReview));
+    if (params?.serviceStatus) searchParams.set('service_status', params.serviceStatus);
     const query = searchParams.toString();
     return request<PaginatedResponse<Order>>(`/v1/orders${query ? `?${query}` : ''}`);
   },
@@ -369,7 +374,14 @@ export const api = {
 
   async updateOrder(
     id: string,
-    data: { status?: string; tracking_number?: string; tracking_url?: string; needs_review?: boolean }
+    data: {
+      status?: string;
+      tracking_number?: string;
+      tracking_url?: string;
+      needs_review?: boolean;
+      service_status?: 'to_schedule' | 'scheduled' | 'completed';
+      service_note?: string | null;
+    }
   ) {
     return request<Order>(`/v1/orders/${id}`, {
       method: 'PATCH',
@@ -481,7 +493,7 @@ export const api = {
       title: string;
       price_cents: number;
       image_url?: string;
-      product_type?: 'physical' | 'digital';
+      product_type?: 'physical' | 'digital' | 'service';
       weight_g?: number;
     }
   ) {
@@ -499,7 +511,7 @@ export const api = {
       title?: string;
       price_cents?: number;
       image_url?: string | null;
-      product_type?: 'physical' | 'digital';
+      product_type?: 'physical' | 'digital' | 'service';
       weight_g?: number;
     }
   ) {

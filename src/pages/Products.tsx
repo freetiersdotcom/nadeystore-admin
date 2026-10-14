@@ -96,7 +96,7 @@ export function Products() {
   const [variantTitle, setVariantTitle] = useState('');
   const [variantPrice, setVariantPrice] = useState('');
   const [variantImage, setVariantImage] = useState<string | null>(null);
-  const [variantProductType, setVariantProductType] = useState<'physical' | 'digital'>('physical');
+  const [variantProductType, setVariantProductType] = useState<'physical' | 'digital' | 'service'>('physical');
   const [variantWeightG, setVariantWeightG] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -296,7 +296,7 @@ export function Products() {
       weight_g:
         variantProductType === 'physical' && variantWeightG
           ? parseInt(variantWeightG)
-          : variantProductType === 'digital'
+          : variantProductType !== 'physical'
           ? 0
           : undefined,
     };
@@ -772,13 +772,13 @@ export function Products() {
                   {t('products.variant.type')}
                 </label>
                 <div className="flex gap-2">
-                  {(['physical', 'digital'] as const).map((type) => (
+                  {(['physical', 'digital', 'service'] as const).map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => {
                         setVariantProductType(type);
-                        if (type === 'digital') setVariantWeightG('');
+                        if (type !== 'physical') setVariantWeightG('');
                       }}
                       className="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors capitalize"
                       style={{
@@ -787,10 +787,19 @@ export function Products() {
                         color: variantProductType === type ? 'var(--text)' : 'var(--text-muted)',
                       }}
                     >
-                      {type === 'physical' ? t('products.variant.physical') : t('products.variant.digital')}
+                      {type === 'physical'
+                        ? t('products.variant.physical')
+                        : type === 'digital'
+                        ? t('products.variant.digital')
+                        : t('products.variant.service')}
                     </button>
                   ))}
                 </div>
+                {variantProductType === 'service' && (
+                  <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                    {t('products.variant.serviceHint')}
+                  </p>
+                )}
               </div>
 
               {/* SKU + Price */}
@@ -1025,6 +1034,18 @@ function VariantCard({
               }}
             >
               {t('common.digital')}
+            </span>
+          )}
+          {variant.product_type === 'service' && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded font-medium"
+              style={{
+                background: 'rgba(15,107,75,0.12)',
+                color: 'var(--text-secondary)',
+                border: '1px solid rgba(15,107,75,0.3)',
+              }}
+            >
+              {t('common.service')}
             </span>
           )}
         </div>
