@@ -12,6 +12,7 @@ import { Discounts } from './pages/Discounts';
 import { Downloads } from './pages/Downloads';
 import { SetupPayments } from './pages/SetupPayments';
 import { SetupEmail } from './pages/SetupEmail';
+import { Messages } from './pages/Messages';
 
 const VALID_PAGES: Page[] = [
   'orders',
@@ -23,6 +24,7 @@ const VALID_PAGES: Page[] = [
   'webhooks',
   'setup/payments',
   'setup/email',
+  'messages',
 ];
 
 export default function App() {
@@ -133,6 +135,7 @@ export default function App() {
       {currentPage === 'webhooks' && isAgency && <Webhooks />}
       {currentPage === 'setup/payments' && isAgency && <SetupPayments />}
       {currentPage === 'setup/email' && isAgency && <SetupEmail />}
+      {currentPage === 'messages' && <Messages />}
     </Layout>
   );
 }

@@ -14,9 +14,12 @@ import {
   Download,
   Settings,
   Languages,
+  MessageSquare
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useLocale, useT } from '../lib/locale-context';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
 
 export type Page =
   | 'orders'
@@ -27,7 +30,8 @@ export type Page =
   | 'downloads'
   | 'webhooks'
   | 'setup/payments'
-  | 'setup/email';
+  | 'setup/email'
+  | 'messages';
 
 // navItems is now a function that takes t() so labels are always reactive to locale changes.
 // The icon and agencyOnly flag are stable; only label needs translation.
@@ -45,6 +49,7 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
   { id: 'products',        labelKey: 'nav.products',  icon: Package },
   { id: 'discounts',       labelKey: 'nav.discounts', icon: Tag },
   { id: 'downloads',       labelKey: 'nav.downloads', icon: Download },
+  { id: 'messages',        labelKey: 'nav.messages',  icon: MessageSquare },
   { id: 'webhooks',        labelKey: 'nav.webhooks',  icon: Webhook,   agencyOnly: true },
   { id: 'setup/payments',  labelKey: 'nav.payments',  icon: Settings,  agencyOnly: true },
   { id: 'setup/email',     labelKey: 'nav.email',     icon: Settings,  agencyOnly: true },
@@ -70,6 +75,11 @@ export function Layout({
   isAgency,
 }: LayoutProps) {
   const t = useT();
+  const { data: unread } = useQuery({
+      queryKey: ['messages-count'],
+      queryFn: () => api.getSubmissionCount(),
+      refetchInterval: 60_000,
+    });
   const { locale, toggleLocale } = useLocale();
 
   const [collapsed, setCollapsed] = useState(
@@ -139,6 +149,7 @@ export function Layout({
               active={currentPage === id}
               collapsed={collapsed}
               onClick={() => onNavigate(id)}
+              badge={id === 'messages' ? unread?.new : undefined}
             />
           ))}
 
@@ -235,6 +246,7 @@ function NavButton({
   active,
   collapsed,
   onClick,
+  badge,
 }: {
   id: Page;
   label: string;
@@ -242,6 +254,7 @@ function NavButton({
   active: boolean;
   collapsed: boolean;
   onClick: () => void;
+  badge?: number;
 }) {
   return (
     <button
@@ -258,6 +271,16 @@ function NavButton({
     >
       <Icon size={16} className="flex-shrink-0 opacity-60" />
       {!collapsed && <span>{label}</span>}
+      <Icon size={16} className="flex-shrink-0 opacity-60" />
+            {!collapsed && <span>{label}</span>}
+            {!!badge && (
+              <span
+                className="ml-auto text-[11px] leading-none px-1.5 py-1 rounded-full font-medium"
+                style={{ background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-text)' }}
+              >
+                {badge}
+              </span>
+            )}
     </button>
   );
 }

@@ -380,7 +380,22 @@ export const translations = {
     'setup.email.sending':            'Sending...',
     'setup.email.currentFrom':        'From:',
     'setup.email.update':             'Update',
-    'setup.email.configure':          'Configure',
+    'setup.email.configure': 'Configure',
+
+    // Messages
+    'nav.messages':           'Messages',
+    'messages.title':         'Messages',
+    'messages.filter.new':    'New',
+    'messages.filter.handled':'Handled',
+    'messages.filter.all':    'All',
+    'messages.empty':         'No messages here. Messages sent from the website contact form appear here.',
+    'messages.note':          'Private note',
+    'messages.notePlaceholder':'Only you can see this…',
+    'messages.markHandled':   'Mark as handled',
+    'messages.markNew':       'Mark as new',
+    'messages.delete':        'Delete',
+    'messages.confirmDelete': 'Delete this message permanently?',
+
   },
 
   fr: {
@@ -762,7 +777,21 @@ export const translations = {
     'setup.email.sending':           'Envoi en cours...',
     'setup.email.currentFrom':       'De :',
     'setup.email.update':            'Mettre à jour',
-    'setup.email.configure':         'Configurer',
+    'setup.email.configure': 'Configurer',
+
+    // Messages
+    'nav.messages':           'Messages',
+    'messages.title':         'Messages',
+    'messages.filter.new':    'Nouveaux',
+    'messages.filter.handled':'Traités',
+    'messages.filter.all':    'Tous',
+    'messages.empty':         'Aucun message ici. Les messages envoyés depuis le formulaire de contact du site apparaissent ici.',
+    'messages.note':          'Note privée',
+    'messages.notePlaceholder':'Visible par vous uniquement…',
+    'messages.markHandled':   'Marquer comme traité',
+    'messages.markNew':       'Marquer comme nouveau',
+    'messages.delete':        'Supprimer',
+    'messages.confirmDelete': 'Supprimer définitivement ce message ?',
   },
 } as const;
 

@@ -288,6 +288,23 @@ export type UpdateDiscountPayload = {
   usage_limit_per_customer?: number | null;
 };
 
+export type Submission = {
+  id: string;
+  form: 'contact' | 'lead' | 'service_request' | string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  subject: string | null;
+  message: string;
+  locale: string | null;
+  page: string | null;
+  source: Record<string, string> | null;
+  status: 'new' | 'handled';
+  note: string | null;
+  created_at: string;
+  handled_at: string | null;
+};
+
 // ── Discount payload sanitiser ────────────────────────────────
 // Centralises two concerns so individual mutations don't have to:
 //
@@ -745,6 +762,27 @@ export const api = {
     return request<{ ok: true }>(`/v1/discounts/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  // Messages (contact form)
+  async getSubmissions(params?: { limit?: number; cursor?: string; status?: 'new' | 'handled' }) {
+    const sp = new URLSearchParams();
+    if (params?.limit) sp.set('limit', String(params.limit));
+    if (params?.cursor) sp.set('cursor', params.cursor);
+    if (params?.status) sp.set('status', params.status);
+    const q = sp.toString();
+    return request<{ items: Submission[]; has_more: boolean; next_cursor: string | null }>(
+      `/v1/submissions${q ? `?${q}` : ''}`
+    );
+  },
+  async getSubmissionCount() {
+    return request<{ new: number }>('/v1/submissions/count');
+  },
+  async updateSubmission(id: string, body: { status?: 'new' | 'handled'; note?: string | null }) {
+    return request<Submission>(`/v1/submissions/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  },
+  async deleteSubmission(id: string) {
+    return request<{ deleted: true }>(`/v1/submissions/${id}`, { method: 'DELETE' });
   },
 
   // Health check (for login validation)
