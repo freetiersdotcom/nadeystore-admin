@@ -271,16 +271,14 @@ function NavButton({
     >
       <Icon size={16} className="flex-shrink-0 opacity-60" />
       {!collapsed && <span>{label}</span>}
-      <Icon size={16} className="flex-shrink-0 opacity-60" />
-            {!collapsed && <span>{label}</span>}
-            {!!badge && (
-              <span
-                className="ml-auto text-[11px] leading-none px-1.5 py-1 rounded-full font-medium"
-                style={{ background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-text)' }}
-              >
-                {badge}
-              </span>
-            )}
+      {!!badge && (
+        <span
+          className="ml-auto text-[11px] leading-none px-1.5 py-1 rounded-full font-medium"
+          style={{ background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-text)' }}
+        >
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
