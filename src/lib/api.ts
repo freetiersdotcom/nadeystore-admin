@@ -53,6 +53,14 @@ export type OrderPayments = {
   }>;
 };
 
+export type PlanSettings = {
+  auto_cancel: boolean;
+  due_days: number;
+  grace_days: number;
+  reminder_days: number;
+  min_payment_cents: number;
+};
+
 export type Order = {
   id: string;
   number?: string;
@@ -63,11 +71,12 @@ export type Order = {
   needs_review?: boolean;
   review_reason?: string | null;
   // 'online' = paid through the provider, 'cod' = pay on delivery, 'manual' = entered by the merchant.
-  payment_method?: 'online' | 'cod' | 'manual';
+  payment_method?: 'online' | 'cod' | 'manual' | 'deposit';
   payment_status?: 'unpaid' | 'partial' | 'paid';
   paid_cents?: number;
   balance_cents?: number;
   paid_at?: string | null;
+  due_at?: string | null;
   // Manual follow-up of a service item (coaching, consultation…). Null/absent when
   // the order contains no service.
   service_status?: 'to_schedule' | 'scheduled' | 'completed' | null;
@@ -185,6 +194,8 @@ export type Product = {
   description_en: string | null;
   tags: string[] | null;
   video_url: string | null;
+  deposit_type?: 'percent' | 'fixed' | null;
+  deposit_value?: number | null;
   status: 'active' | 'draft';
   created_at: string;
   variants: Variant[];
@@ -430,6 +441,28 @@ export const api = {
     });
   },
 
+  async orderPayLink(id: string, body: { due_at?: string | null; send?: boolean }) {
+    return request<{ pay_url: string; due_at: string | null; emailed: boolean }>(`/v1/orders/${id}/pay-link`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async getPlanSettings() {
+    return request<PlanSettings>('/v1/payment-plans/settings');
+  },
+
+  async savePlanSettings(body: Partial<PlanSettings>) {
+    return request<PlanSettings>('/v1/payment-plans/settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async runPlanSweep() {
+    return request<{ checked: number; reminded: number; canceled: number }>('/v1/payment-plans/sweep', { method: 'POST' });
+  },
+
   async getOrderPayments(id: string) {
     return request<OrderPayments>(`/v1/orders/${id}/payments`);
   },
@@ -555,6 +588,8 @@ export const api = {
       description_en?: string | null;
       tags?: string[] | null;
       video_url?: string | null;
+      deposit_type?: 'percent' | 'fixed' | null;
+      deposit_value?: number | null;
       status?: string;
     }
   ) {

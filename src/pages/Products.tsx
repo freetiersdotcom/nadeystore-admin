@@ -33,6 +33,7 @@ import { assetDownloadUrl, assetDisplayName, assetFilename, formatFileSize } fro
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { useT } from '../lib/locale-context';
+import { DepositFields } from './DepositFields';
 import clsx from 'clsx';
 
 const columnHelper = createColumnHelper<Product>();
@@ -686,6 +687,14 @@ export function Products() {
                 {videoError && <p className="text-xs mt-1 text-red-500">{videoError}</p>}
                 <p className="text-xs mt-1" style={helpStyle}>{t('products.form.videoHelp')}</p>
               </div>
+
+              <DepositFields
+                key={`deposit-${selectedProduct.id}`}
+                productId={selectedProduct.id}
+                type={selectedProduct.deposit_type}
+                value={selectedProduct.deposit_value}
+                onSave={(d) => updateProductMutation.mutate({ id: selectedProduct.id, data: d })}
+              />
 
               <div>
                 <label className={labelClass} style={labelStyle}>{t('products.form.slug')}</label>

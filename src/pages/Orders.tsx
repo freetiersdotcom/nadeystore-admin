@@ -28,6 +28,8 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { PaymentPanel } from './PaymentPanel';
 import { ManualOrderModal } from './ManualOrderModal';
+import { PlanPanel } from './PlanPanel';
+import { PlanSettingsModal } from './PlanSettingsModal';
 import clsx from 'clsx';
 import { useT } from '../lib/locale-context';
 
@@ -68,6 +70,7 @@ export function Orders() {
   const [toScheduleOnly, setToScheduleOnly] = useState(false);
   const [balanceDueOnly, setBalanceDueOnly] = useState(false);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [planSettingsOpen, setPlanSettingsOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Fetch orders
@@ -211,6 +214,16 @@ export function Orders() {
                   {t('orders.balanceDue')}
                 </span>
               )}
+            {(info.row.original.balance_cents ?? 0) > 0 &&
+              !!info.row.original.due_at &&
+              Date.parse(info.row.original.due_at) < Date.now() &&
+              !['canceled', 'refunded'].includes(info.row.original.status) && (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                >
+                  {t('plan.overdue')}
+                </span>
+              )}
             {info.row.original.needs_review && (
               <span
                 title={t('orders.needsReview.banner')}
@@ -268,6 +281,13 @@ export function Orders() {
           >
             <Plus size={14} />
             {t('orders.new')}
+          </button>
+          <button
+            onClick={() => setPlanSettingsOpen(true)}
+            className="text-sm hover:underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {t('plan.settings.open')}
           </button>
         </div>
         <button
@@ -448,6 +468,13 @@ export function Orders() {
             {/* Payments: balance, history, record a payment */}
             <PaymentPanel
               key={selectedOrder.id}
+              order={selectedOrder}
+              onOrderChange={(o) => setSelectedOrder(o)}
+            />
+
+            {/* Deposit / installments: due date and pay link */}
+            <PlanPanel
+              key={`plan-${selectedOrder.id}-${selectedOrder.due_at ?? ''}`}
               order={selectedOrder}
               onOrderChange={(o) => setSelectedOrder(o)}
             />
@@ -807,6 +834,8 @@ export function Orders() {
           </div>
         )}
       </Modal>
+
+      <PlanSettingsModal open={planSettingsOpen} onClose={() => setPlanSettingsOpen(false)} />
 
       {/* Order entered by the merchant */}
       <ManualOrderModal
