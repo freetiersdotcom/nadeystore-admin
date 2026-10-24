@@ -405,6 +405,27 @@ export type OrderDownloads = {
 
 // ─── API Methods ──────────────────────────────────────────────────────────────
 
+// ── Appointments (service bookings) ──────────────────────────────────────
+export type BookingRule = { dow: number; start: string; end: string };
+export type BookingConfig = {
+  product_id: string; enabled: boolean; tz: string; rules: BookingRule[];
+  lead_hours: number; horizon_days: number; buffer_min: number; step_min: number;
+  default_duration_min: number; durations: Record<string, number>;
+};
+export type BookingService = {
+  product_id: string; title: string; variants: Array<{ sku: string; title: string }>; booking: BookingConfig | null;
+};
+export type AgendaItem = {
+  id: string; sku: string; title: string; status: 'booked' | 'canceled'; starts_at: string; ends_at: string;
+  customer_tz: string | null; order_id: string | null; order_number: string | null; customer_email: string | null;
+  customer_name: string | null; order_status: string | null;
+};
+export type BookingBlock = { id: string; product_id: string | null; starts_at: string; ends_at: string; note: string | null };
+export type Agenda = {
+  items: AgendaItem[]; blocks: BookingBlock[];
+  unscheduled: Array<{ order_id: string; order_number: string; customer_email: string; created_at: string; needs_review: number; review_reason: string | null }>;
+};
+
 export const api = {
   // Orders
   async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean; serviceStatus?: string; balanceDue?: boolean }) {
@@ -879,6 +900,36 @@ export const api = {
   },
   async deleteSubmission(id: string) {
     return request<{ deleted: true }>(`/v1/submissions/${id}`, { method: 'DELETE' });
+  },
+
+  // Appointments
+  async getBookingServices() {
+    return request<{ items: BookingService[]; default_tz: string }>('/v1/bookings/services');
+  },
+  async saveBookingService(productId: string, body: Omit<BookingConfig, 'product_id'>) {
+    return request<BookingConfig>(`/v1/bookings/services/${productId}`, { method: 'PUT', body: JSON.stringify(body) });
+  },
+  async getAgenda(params: { from?: string; to?: string; status?: 'booked' | 'canceled' | 'all' } = {}) {
+    const sp = new URLSearchParams();
+    if (params.from) sp.set('from', params.from);
+    if (params.to) sp.set('to', params.to);
+    if (params.status) sp.set('status', params.status);
+    return request<Agenda>(`/v1/bookings/agenda?${sp.toString()}`);
+  },
+  async bookAppointment(body: { order_id: string; start: string; sku?: string; notify?: boolean }) {
+    return request<unknown>('/v1/bookings/appointments', { method: 'POST', body: JSON.stringify(body) });
+  },
+  async moveAppointment(id: string, body: { start: string; notify?: boolean }) {
+    return request<unknown>(`/v1/bookings/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  },
+  async cancelAppointment(id: string, body: { notify?: boolean } = {}) {
+    return request<{ canceled: true }>(`/v1/bookings/appointments/${id}/cancel`, { method: 'POST', body: JSON.stringify(body) });
+  },
+  async addBlock(body: { starts_at: string; ends_at: string; note?: string | null; product_id?: string | null }) {
+    return request<BookingBlock>('/v1/bookings/blocks', { method: 'POST', body: JSON.stringify(body) });
+  },
+  async deleteBlock(id: string) {
+    return request<{ deleted: true }>(`/v1/bookings/blocks/${id}`, { method: 'DELETE' });
   },
 
   // Health check (for login validation)
