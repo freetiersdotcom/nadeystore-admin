@@ -36,6 +36,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type OrderPayments = {
+  order_id: string;
+  status: string;
+  total_cents: number;
+  paid_cents: number;
+  balance_cents: number;
+  payment_status: 'unpaid' | 'partial' | 'paid';
+  payments: Array<{
+    id: string;
+    amount_cents: number;
+    method: string;
+    reference: string | null;
+    note: string | null;
+    created_at: string;
+  }>;
+};
+
 export type Order = {
   id: string;
   number?: string;
@@ -45,6 +62,12 @@ export type Order = {
   // released, so stock should be verified by hand before fulfilling.
   needs_review?: boolean;
   review_reason?: string | null;
+  // 'online' = paid through the provider, 'cod' = pay on delivery, 'manual' = entered by the merchant.
+  payment_method?: 'online' | 'cod' | 'manual';
+  payment_status?: 'unpaid' | 'partial' | 'paid';
+  paid_cents?: number;
+  balance_cents?: number;
+  paid_at?: string | null;
   // Manual follow-up of a service item (coaching, consultation…). Null/absent when
   // the order contains no service.
   service_status?: 'to_schedule' | 'scheduled' | 'completed' | null;
@@ -373,7 +396,7 @@ export type OrderDownloads = {
 
 export const api = {
   // Orders
-  async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean; serviceStatus?: string }) {
+  async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean; serviceStatus?: string; balanceDue?: boolean }) {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.cursor) searchParams.set('cursor', params.cursor);
@@ -381,6 +404,7 @@ export const api = {
     if (params?.email) searchParams.set('email', params.email);
     if (params?.needsReview !== undefined) searchParams.set('needs_review', String(params.needsReview));
     if (params?.serviceStatus) searchParams.set('service_status', params.serviceStatus);
+    if (params?.balanceDue) searchParams.set('balance_due', 'true');
     const query = searchParams.toString();
     return request<PaginatedResponse<Order>>(`/v1/orders${query ? `?${query}` : ''}`);
   },
@@ -404,6 +428,43 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  },
+
+  async getOrderPayments(id: string) {
+    return request<OrderPayments>(`/v1/orders/${id}/payments`);
+  },
+
+  async recordPayment(
+    id: string,
+    body: { amount_cents?: number; method: string; reference?: string; note?: string }
+  ) {
+    return request<OrderPayments>(`/v1/orders/${id}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async voidPayment(id: string, paymentId: string) {
+    return request<OrderPayments>(`/v1/orders/${id}/payments/${paymentId}`, { method: 'DELETE' });
+  },
+
+  async createManualOrder(body: {
+    customer_email: string;
+    customer_name?: string;
+    currency?: string;
+    address?: { line1: string; city: string; postal_code: string; country: string };
+    items: Array<{ sku: string; qty: number; unit_price_cents?: number }>;
+    payment?: { amount_cents: number; method: string };
+  }) {
+    return request<{
+      order_id: string;
+      order_number: string;
+      status: string;
+      total_cents: number;
+      paid_cents: number;
+      balance_cents: number;
+      payment_status: 'unpaid' | 'partial' | 'paid';
+    }>('/v1/orders/manual', { method: 'POST', body: JSON.stringify(body) });
   },
 
   async getOrderRefunds(id: string) {

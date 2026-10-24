@@ -20,11 +20,14 @@ import {
   ExternalLink,
   AlertTriangle,
   Banknote,
+  Plus,
 } from 'lucide-react';
 import { api, Order, RefundMethod } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
+import { PaymentPanel } from './PaymentPanel';
+import { ManualOrderModal } from './ManualOrderModal';
 import clsx from 'clsx';
 import { useT } from '../lib/locale-context';
 
@@ -40,7 +43,7 @@ const ORDER_STATUSES = [
   'canceled',
 ] as const;
 
-const REFUNDABLE_STATUSES = ['paid', 'processing', 'shipped', 'delivered'] as const;
+const REFUNDABLE_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'canceled'] as const;
 
 const REFUND_METHODS: RefundMethod[] = [
   'mtn_momo_dashboard',
@@ -63,17 +66,20 @@ export function Orders() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
   const [toScheduleOnly, setToScheduleOnly] = useState(false);
+  const [balanceDueOnly, setBalanceDueOnly] = useState(false);
+  const [newOrderOpen, setNewOrderOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Fetch orders
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['orders', statusFilter, needsReviewOnly, toScheduleOnly],
+    queryKey: ['orders', statusFilter, needsReviewOnly, toScheduleOnly, balanceDueOnly],
     queryFn: () =>
       api.getOrders({
         limit: 100,
         status: statusFilter || undefined,
         needsReview: needsReviewOnly || undefined,
         serviceStatus: toScheduleOnly ? 'to_schedule' : undefined,
+        balanceDue: balanceDueOnly || undefined,
       }),
   });
 
@@ -197,6 +203,14 @@ export function Orders() {
                 {t('orders.service.status.to_schedule')}
               </span>
             )}
+            {(info.row.original.balance_cents ?? 0) > 0 &&
+              !['canceled', 'refunded'].includes(info.row.original.status) && (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400"
+                >
+                  {t('orders.balanceDue')}
+                </span>
+              )}
             {info.row.original.needs_review && (
               <span
                 title={t('orders.needsReview.banner')}
@@ -243,9 +257,19 @@ export function Orders() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-4 h-9">
-        <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
-          {t('orders.title')}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+            {t('orders.title')}
+          </h1>
+          <button
+            onClick={() => setNewOrderOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg"
+            style={{ background: 'var(--text)', color: 'var(--bg-card)' }}
+          >
+            <Plus size={14} />
+            {t('orders.new')}
+          </button>
+        </div>
         <button
           onClick={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
           disabled={isFetching}
@@ -322,6 +346,19 @@ export function Orders() {
             }}
           >
             {t('orders.filter.toSchedule')}
+          </button>
+
+          {/* Orders with a balance still to collect */}
+          <button
+            onClick={() => setBalanceDueOnly((v) => !v)}
+            className="h-full flex items-center gap-1.5 px-4 py-3 font-mono text-sm border-l focus:outline-none"
+            style={{
+              borderColor: 'var(--border)',
+              color: balanceDueOnly ? 'var(--text)' : 'var(--text-muted)',
+              background: balanceDueOnly ? 'rgba(14, 165, 233, 0.1)' : 'transparent',
+            }}
+          >
+            {t('orders.filter.balanceDue')}
           </button>
         </div>
 
@@ -406,6 +443,13 @@ export function Orders() {
             <StatusBadge
               status={selectedOrder.status}
               label={t(`orders.status.${selectedOrder.status}` as Parameters<typeof t>[0])}
+            />
+
+            {/* Payments: balance, history, record a payment */}
+            <PaymentPanel
+              key={selectedOrder.id}
+              order={selectedOrder}
+              onOrderChange={(o) => setSelectedOrder(o)}
             />
 
             {/* Needs-review banner */}
@@ -734,6 +778,7 @@ export function Orders() {
               </p>
               <div className="flex items-center gap-4">
                 {(REFUNDABLE_STATUSES as readonly string[]).includes(selectedOrder.status) &&
+                  (selectedOrder.paid_cents ?? 1) > 0 &&
                   (refundData?.remaining_cents ?? 1) > 0 && (
                     <button
                       onClick={openRefundDialog}
@@ -762,6 +807,13 @@ export function Orders() {
           </div>
         )}
       </Modal>
+
+      {/* Order entered by the merchant */}
+      <ManualOrderModal
+        open={newOrderOpen}
+        onClose={() => setNewOrderOpen(false)}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+      />
 
       {/* Manual refund dialog */}
       <Modal
