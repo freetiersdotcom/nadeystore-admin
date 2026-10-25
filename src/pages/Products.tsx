@@ -693,6 +693,7 @@ export function Products() {
                 productId={selectedProduct.id}
                 type={selectedProduct.deposit_type}
                 value={selectedProduct.deposit_value}
+                dueDays={selectedProduct.deposit_due_days}
                 onSave={(d) => updateProductMutation.mutate({ id: selectedProduct.id, data: d })}
               />
 

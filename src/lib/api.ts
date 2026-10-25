@@ -196,6 +196,7 @@ export type Product = {
   video_url: string | null;
   deposit_type?: 'percent' | 'fixed' | null;
   deposit_value?: number | null;
+  deposit_due_days?: number | null;
   status: 'active' | 'draft';
   created_at: string;
   variants: Variant[];
@@ -611,6 +612,7 @@ export const api = {
       video_url?: string | null;
       deposit_type?: 'percent' | 'fixed' | null;
       deposit_value?: number | null;
+      deposit_due_days?: number | null;
       status?: string;
     }
   ) {

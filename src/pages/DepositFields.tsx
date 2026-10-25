@@ -8,13 +8,14 @@ type Props = {
   productId: string;
   type: 'percent' | 'fixed' | null | undefined;
   value: number | null | undefined;
-  onSave: (data: { deposit_type: 'percent' | 'fixed' | null; deposit_value: number | null }) => void;
+  dueDays?: number | null;
+  onSave: (data: { deposit_type?: 'percent' | 'fixed' | null; deposit_value?: number | null; deposit_due_days?: number | null }) => void;
 };
 
 const fieldClass = 'w-full px-3 py-2 text-sm font-mono rounded-lg focus:outline-none focus:ring-2';
 const fieldStyle = { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' } as const;
 
-export function DepositFields({ productId, type, value, onSave }: Props) {
+export function DepositFields({ productId, type, value, dueDays, onSave }: Props) {
   const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<'' | 'percent' | 'fixed'>(type ?? '');
@@ -59,6 +60,26 @@ export function DepositFields({ productId, type, value, onSave }: Props) {
       </div>
       {error && <p className="text-xs mt-1 text-red-500">{error}</p>}
       <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('products.deposit.help')}</p>
+      {kind && (
+        <div className="mt-3">
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{t('products.deposit.dueDays')}</label>
+          <input
+            type="number" min={1} max={365}
+            key={`due-${productId}-${dueDays ?? ''}`}
+            defaultValue={dueDays ?? ''}
+            placeholder={t('products.deposit.dueDaysDefault')}
+            onBlur={(e) => {
+              const raw = e.target.value.trim();
+              const n = raw === '' ? null : Math.floor(Number(raw));
+              if (n !== null && (!Number.isFinite(n) || n < 1 || n > 365)) { setError(t('products.deposit.invalid')); return; }
+              setError(null);
+              if (n !== (dueDays ?? null)) onSave({ deposit_due_days: n });
+            }}
+            className={fieldClass} style={fieldStyle}
+          />
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('products.deposit.dueDaysHelp')}</p>
+        </div>
+      )}
     </div>
   );
 }
