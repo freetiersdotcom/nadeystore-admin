@@ -17,6 +17,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import clsx from 'clsx';
+import { Truck } from 'lucide-react';
 import { CalendarClock } from 'lucide-react';
 import { useLocale, useT } from '../lib/locale-context';
 import { useQuery } from '@tanstack/react-query';
@@ -30,6 +31,7 @@ export type Page =
   | 'discounts'
   | 'downloads'
   | 'appointments'
+  | 'shipping'
   | 'webhooks'
   | 'setup/payments'
   | 'setup/email'
@@ -52,6 +54,7 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
   { id: 'discounts',       labelKey: 'nav.discounts', icon: Tag },
   { id: 'downloads',       labelKey: 'nav.downloads', icon: Download },
   { id: 'appointments',    labelKey: 'nav.appointments', icon: CalendarClock },
+  { id: 'shipping',        labelKey: 'nav.shipping',  icon: Truck },
   { id: 'messages',        labelKey: 'nav.messages',  icon: MessageSquare },
   { id: 'webhooks',        labelKey: 'nav.webhooks',  icon: Webhook,   agencyOnly: true },
   { id: 'setup/payments',  labelKey: 'nav.payments',  icon: Settings,  agencyOnly: true },

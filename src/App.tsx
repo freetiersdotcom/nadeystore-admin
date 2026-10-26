@@ -11,6 +11,7 @@ import { Webhooks } from './pages/Webhooks';
 import { Discounts } from './pages/Discounts';
 import { Downloads } from './pages/Downloads';
 import { Appointments } from './pages/Appointments';
+import { Shipping } from './pages/Shipping';
 import { SetupPayments } from './pages/SetupPayments';
 import { SetupEmail } from './pages/SetupEmail';
 import { Messages } from './pages/Messages';
@@ -23,6 +24,7 @@ const VALID_PAGES: Page[] = [
   'discounts',
   'downloads',
   'appointments',
+  'shipping',
   'webhooks',
   'setup/payments',
   'setup/email',
@@ -135,6 +137,7 @@ export default function App() {
       {currentPage === 'discounts' && <Discounts />}
       {currentPage === 'downloads' && <Downloads />}
       {currentPage === 'appointments' && <Appointments />}
+      {currentPage === 'shipping' && <Shipping />}
       {currentPage === 'webhooks' && isAgency && <Webhooks />}
       {currentPage === 'setup/payments' && isAgency && <SetupPayments />}
       {currentPage === 'setup/email' && isAgency && <SetupEmail />}

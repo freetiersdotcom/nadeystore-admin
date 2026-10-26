@@ -61,6 +61,51 @@ export type PlanSettings = {
   min_payment_cents: number;
 };
 
+export type ShippingSettings = {
+  enabled: boolean;
+  default_weight_g: number;
+  free_over_cents: number | null;
+  base_currency: string;
+  fx: Record<string, number>;
+};
+
+export type ShippingRate = {
+  id: string;
+  zone_id: string;
+  name_fr: string;
+  name_en: string;
+  kind: 'flat' | 'weight' | 'pickup';
+  flat_cents: number;
+  bands: Array<{ up_to_g: number; cents: number }>;
+  over_per_kg_cents: number | null;
+  free_over_cents: number | null;
+  min_days: number | null;
+  max_days: number | null;
+  pickup_address: string | null;
+  active: boolean;
+  position: number;
+};
+export type ShippingRateInput = Omit<ShippingRate, 'id' | 'zone_id'>;
+
+export type ShippingZone = {
+  id: string;
+  name: string;
+  countries: string[];
+  regions: string[];
+  active: boolean;
+  position: number;
+  rates: ShippingRate[];
+};
+
+export type ShippingQuote = {
+  deliverable: boolean;
+  reason?: string;
+  weight_g: number;
+  estimated: boolean;
+  zone: { id: string; name: string } | null;
+  options: Array<{ id: string; kind: string; name_fr: string; name_en: string; cents: number; free: boolean }>;
+};
+
 export type Order = {
   id: string;
   number?: string;
@@ -655,6 +700,43 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  },
+
+  async getShippingSettings() {
+    return request<ShippingSettings>('/v1/shipping/settings');
+  },
+  async saveShippingSettings(body: Partial<ShippingSettings>) {
+    return request<ShippingSettings>('/v1/shipping/settings', { method: 'PUT', body: JSON.stringify(body) });
+  },
+  async getShippingZones() {
+    return request<{ data: ShippingZone[] }>('/v1/shipping/zones');
+  },
+  async createShippingZone(body: Omit<ShippingZone, 'id' | 'rates'>) {
+    return request<ShippingZone>('/v1/shipping/zones', { method: 'POST', body: JSON.stringify(body) });
+  },
+  async updateShippingZone(id: string, body: Partial<Omit<ShippingZone, 'id' | 'rates'>>) {
+    return request<ShippingZone>(`/v1/shipping/zones/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  },
+  async deleteShippingZone(id: string) {
+    return request<{ deleted: boolean }>(`/v1/shipping/zones/${id}`, { method: 'DELETE' });
+  },
+  async createShippingRate(zoneId: string, body: ShippingRateInput) {
+    return request<ShippingRate>(`/v1/shipping/zones/${zoneId}/rates`, { method: 'POST', body: JSON.stringify(body) });
+  },
+  async updateShippingRate(id: string, body: ShippingRateInput) {
+    return request<ShippingRate>(`/v1/shipping/rates/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  },
+  async deleteShippingRate(id: string) {
+    return request<{ deleted: boolean }>(`/v1/shipping/rates/${id}`, { method: 'DELETE' });
+  },
+  async getShippingMissingWeights() {
+    return request<{ data: Array<{ variant_id: string; product_id: string; sku: string; title: string; product_title: string }> }>('/v1/shipping/missing-weights');
+  },
+  async loadShippingStarter() {
+    return request<{ created: number }>('/v1/shipping/starter', { method: 'POST' });
+  },
+  async testShipping(body: { country: string; city?: string; weight_g: number }) {
+    return request<ShippingQuote>('/v1/shipping/test', { method: 'POST', body: JSON.stringify(body) });
   },
 
   async uploadAsset(productId: string, variantId: string, file: File) {
