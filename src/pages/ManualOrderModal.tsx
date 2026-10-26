@@ -4,6 +4,8 @@ import { api } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { Modal } from '../components/Modal';
 import { useT } from '../lib/locale-context';
+import { ContactFields, emptyContact, contactPayload } from '../components/ContactFields';
+import { postalRule, buildPhone } from '../lib/geo';
 
 // Order entered by the merchant: counter sale, phone or WhatsApp order.
 // Stock is deducted, an optional first payment is recorded, no email is sent.
@@ -24,10 +26,9 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [line1, setLine1] = useState('');
   const [city, setCity] = useState('');
-  const [country, setCountry] = useState('BJ');
+  const [contact, setContact] = useState(emptyContact());
   const [currency, setCurrency] = useState('XOF');
   const [lines, setLines] = useState<Line[]>([{ sku: '', qty: '1', price: '' }]);
   const [paidNow, setPaidNow] = useState('');
@@ -71,7 +72,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
   });
 
   function reset() {
-    setEmail(''); setName(''); setPhone(''); setLine1(''); setCity('');
+    setEmail(''); setName(''); setLine1(''); setCity(''); setContact(emptyContact());
     setLines([{ sku: '', qty: '1', price: '' }]);
     setPaidNow(''); setMethod('cash'); setError(null);
   }
@@ -88,6 +89,15 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
       setError(t('orders.manual.invalid'));
       return;
     }
+    const hasAddress = !!(line1.trim() && city.trim());
+    if (hasAddress) {
+      // Same rules as the API: a known country, a postal code where the country needs one,
+      // and a phone number that looks like one (the API makes the final check).
+      const digits = buildPhone(contact.dial, contact.phone).replace(/\D/g, '');
+      if (!contact.country) { setError(t('contact.errCountry')); return; }
+      if (postalRule(contact.country) === 'required' && !contact.postal.trim()) { setError(t('contact.errPostal')); return; }
+      if (contact.phone.trim() && (digits.length < 8 || digits.length > 15)) { setError(t('contact.errPhone')); return; }
+    }
     let payment: { amount_cents: number; method: (typeof METHODS)[number] } | undefined;
     if (paidNow.trim() !== '') {
       const cents = toCents(paidNow);
@@ -102,8 +112,8 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
       customer_email: email.trim(),
       customer_name: name.trim() || undefined,
       currency: currency.toUpperCase(),
-      address: line1.trim() && city.trim()
-        ? { line1: line1.trim(), city: city.trim(), postal_code: phone.trim() || '-', country: country.trim().toUpperCase() }
+      address: hasAddress
+        ? { line1: line1.trim(), city: city.trim(), ...contactPayload(contact) }
         : undefined,
       items,
       payment,
@@ -187,8 +197,9 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <input type="text" value={line1} onChange={(e) => setLine1(e.target.value)} placeholder={t('orders.manual.addressLine')} className={inputCls} style={inputStyle} />
             <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('orders.manual.city')} className={inputCls} style={inputStyle} />
-            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t('orders.manual.phone')} className={inputCls} style={inputStyle} />
-            <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} placeholder={t('orders.manual.country')} maxLength={2} className={inputCls} style={inputStyle} />
+          </div>
+          <div className="mt-3">
+            <ContactFields value={contact} onChange={setContact} inputCls={inputCls} inputStyle={inputStyle} />
           </div>
         </div>
 

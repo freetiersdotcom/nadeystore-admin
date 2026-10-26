@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Pencil, CalendarClock, Ban } from 'lucide-react';
 import clsx from 'clsx';
@@ -7,6 +7,65 @@ import { Modal } from '../components/Modal';
 import { useT } from '../lib/locale-context';
 
 type Tab = 'agenda' | 'services' | 'blocks';
+
+// ── Time zone picker ──────────────────────────────────────────────────────
+// A text box expects people to know "Africa/Porto-Novo" by heart: pick from the browser's own list instead.
+const COMMON_TZ = ['Africa/Porto-Novo', 'Africa/Lagos', 'Africa/Abidjan', 'Africa/Dakar', 'Europe/Paris', 'Europe/Brussels', 'Europe/London', 'America/Toronto', 'America/New_York'];
+const offsetCache = new Map<string, string>();
+
+/** "UTC+01:00" for a zone, right now (daylight saving included). */
+export function tzOffset(tz: string): string {
+  const hit = offsetCache.get(tz);
+  if (hit !== undefined) return hit;
+  let out = '';
+  try {
+    const v = new Intl.DateTimeFormat('en', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    out = v === 'GMT' ? 'UTC±00:00' : v.replace('GMT', 'UTC');
+  } catch { /* unknown zone: no offset shown */ }
+  offsetCache.set(tz, out);
+  return out;
+}
+const tzCity = (tz: string) => tz.split('/').slice(1).join(' / ').replace(/_/g, ' ') || tz;
+export const tzLabel = (tz: string) => { const o = tzOffset(tz); return o ? `${tzCity(tz)} (${o})` : tzCity(tz); };
+
+/** Every zone the browser knows, by region; the current value is always included, even if the browser lists it under another name. */
+export function tzGroups(current: string): Array<{ region: string; zones: string[] }> {
+  let all: string[] = [];
+  try { all = (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf('timeZone'); } catch { /* old browser: common list only */ }
+  const rest = new Set([...all, current].filter((z) => z && !COMMON_TZ.includes(z)));
+  const byRegion = new Map<string, string[]>();
+  for (const z of [...rest].sort()) {
+    const r = z.includes('/') ? z.split('/')[0] : 'Other';
+    byRegion.set(r, [...(byRegion.get(r) ?? []), z]);
+  }
+  return [...byRegion].map(([region, zones]) => ({ region, zones }));
+}
+
+export function TimeZoneSelect({ value, onChange, className, ariaLabel, commonLabel, browserLabel }: {
+  value: string; onChange: (tz: string) => void; className: string; ariaLabel: string; commonLabel: string; browserLabel: string;
+}) {
+  const groups = useMemo(() => tzGroups(value), [value]);
+  const browserTz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ''; } })();
+  return (
+    <>
+      <select className={className} value={value} aria-label={ariaLabel} onChange={(e) => onChange(e.target.value)}>
+        <optgroup label={commonLabel}>
+          {COMMON_TZ.map((z) => <option key={z} value={z}>{tzLabel(z)}</option>)}
+        </optgroup>
+        {groups.map((g) => (
+          <optgroup key={g.region} label={g.region}>
+            {g.zones.map((z) => <option key={z} value={z}>{tzLabel(z)}</option>)}
+          </optgroup>
+        ))}
+      </select>
+      {browserTz && browserTz !== value && (
+        <button type="button" className="mt-1 text-xs underline text-gray-600 dark:text-gray-400" onClick={() => onChange(browserTz)}>
+          {browserLabel} ({browserTz})
+        </button>
+      )}
+    </>
+  );
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -115,7 +174,7 @@ function AgendaTab() {
           <ul className="divide-y divide-amber-200 dark:divide-amber-800">
             {q.data!.unscheduled.map((u) => (
               <li key={u.order_id} className="py-2 flex items-center justify-between gap-3 text-sm">
-                <span><strong>{u.order_number}</strong> · {u.customer_email}
+                <span><strong>{u.order_number}</strong> · {u.customer_email}{u.customer_phone ? <> · <a className="underline" href={`https://wa.me/${u.customer_phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{u.customer_phone}</a></> : null}
                   {u.review_reason ? <span className="block text-xs text-amber-700 dark:text-amber-400">{u.review_reason}</span> : null}</span>
                 <button className={btnGhost} onClick={() => open({ orderId: u.order_id, label: `${u.order_number} · ${u.customer_email}` })}>
                   <CalendarClock size={14} /> {t('appt.schedule')}
@@ -143,7 +202,7 @@ function AgendaTab() {
               <li key={a.id} className={clsx('p-3 flex flex-wrap items-center justify-between gap-3', a.status === 'canceled' && 'opacity-50')}>
                 <div className="text-sm">
                   <div className="font-medium">{fmtTime(a.starts_at, loc)} – {fmtTime(a.ends_at, loc)} · {a.title}</div>
-                  <div className="text-gray-500">{a.order_number} · {a.customer_name ? a.customer_name + ' · ' : ''}{a.customer_email}</div>
+                  <div className="text-gray-500">{a.order_number} · {a.customer_name ? a.customer_name + ' · ' : ''}{a.customer_email}{a.customer_phone ? <> · <a className="underline" href={`https://wa.me/${a.customer_phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{a.customer_phone}</a></> : null}</div>
                   {a.status === 'canceled' && <div className="text-xs text-red-600">{t('appt.canceled')}</div>}
                 </div>
                 {a.status === 'booked' && (
@@ -322,8 +381,8 @@ function ServicesTab() {
                 <input type="number" min={0} className={inputCls} value={draft.buffer_min} onChange={(e) => set({ buffer_min: num(e.target.value) })} /></label>
               <label><span className="block mb-1">{t('appt.step')}</span>
                 <input type="number" min={5} className={inputCls} value={draft.step_min} onChange={(e) => set({ step_min: num(e.target.value) })} /></label>
-              <label className="col-span-2"><span className="block mb-1">{t('appt.tz')}</span>
-                <input className={inputCls} value={draft.tz} onChange={(e) => set({ tz: e.target.value })} /></label>
+              <div className="col-span-2"><span className="block mb-1">{t('appt.tz')}</span>
+                <TimeZoneSelect className={inputCls} value={draft.tz} onChange={(tz) => set({ tz })} ariaLabel={t('appt.tz')} commonLabel={t('appt.tzCommon')} browserLabel={t('appt.tzBrowser')} /></div>
             </div>
             <p className="text-xs text-gray-500">{t('appt.sharedAgenda')}</p>
 

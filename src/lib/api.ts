@@ -419,12 +419,12 @@ export type BookingService = {
 export type AgendaItem = {
   id: string; sku: string; title: string; status: 'booked' | 'canceled'; starts_at: string; ends_at: string;
   customer_tz: string | null; order_id: string | null; order_number: string | null; customer_email: string | null;
-  customer_name: string | null; order_status: string | null;
+  customer_name: string | null; customer_phone: string | null; order_status: string | null;
 };
 export type BookingBlock = { id: string; product_id: string | null; starts_at: string; ends_at: string; note: string | null };
 export type Agenda = {
   items: AgendaItem[]; blocks: BookingBlock[];
-  unscheduled: Array<{ order_id: string; order_number: string; customer_email: string; created_at: string; needs_review: number; review_reason: string | null }>;
+  unscheduled: Array<{ order_id: string; order_number: string; customer_email: string; customer_phone: string | null; created_at: string; needs_review: number; review_reason: string | null }>;
 };
 
 export const api = {
@@ -507,7 +507,7 @@ export const api = {
     customer_email: string;
     customer_name?: string;
     currency?: string;
-    address?: { line1: string; city: string; postal_code: string; country: string };
+    address?: { line1: string; city: string; postal_code?: string; phone?: string; country: string };
     items: Array<{ sku: string; qty: number; unit_price_cents?: number }>;
     payment?: { amount_cents: number; method: string };
   }) {
