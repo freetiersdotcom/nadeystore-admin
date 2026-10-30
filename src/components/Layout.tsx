@@ -14,7 +14,8 @@ import {
   Download,
   Settings,
   Languages,
-  MessageSquare
+  MessageSquare,
+  UserCog,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { Truck } from 'lucide-react';
@@ -35,7 +36,25 @@ export type Page =
   | 'webhooks'
   | 'setup/payments'
   | 'setup/email'
-  | 'messages';
+  | 'messages'
+  | 'team';
+
+/** What a person needs to open each page. `team` is open to any signed-in person (it holds "my account"). */
+export const PAGE_PERMISSION: Record<Page, string | null> = {
+  orders: 'orders.read',
+  customers: 'customers.read',
+  inventory: 'inventory.read',
+  products: 'products.read',
+  discounts: 'discounts.read',
+  downloads: 'orders.read',
+  appointments: 'appointments.read',
+  shipping: 'shipping.read',
+  webhooks: 'webhooks.manage',
+  'setup/payments': 'settings.manage',
+  'setup/email': 'settings.manage',
+  messages: 'messages.read',
+  team: null,
+};
 
 // navItems is now a function that takes t() so labels are always reactive to locale changes.
 // The icon and agencyOnly flag are stable; only label needs translation.
@@ -56,6 +75,7 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
   { id: 'appointments',    labelKey: 'nav.appointments', icon: CalendarClock },
   { id: 'shipping',        labelKey: 'nav.shipping',  icon: Truck },
   { id: 'messages',        labelKey: 'nav.messages',  icon: MessageSquare },
+  { id: 'team',            labelKey: 'nav.team',      icon: UserCog },
   { id: 'webhooks',        labelKey: 'nav.webhooks',  icon: Webhook,   agencyOnly: true },
   { id: 'setup/payments',  labelKey: 'nav.payments',  icon: Settings,  agencyOnly: true },
   { id: 'setup/email',     labelKey: 'nav.email',     icon: Settings,  agencyOnly: true },
@@ -69,6 +89,12 @@ type LayoutProps = {
   theme: 'light' | 'dark';
   onThemeToggle: () => void;
   isAgency: boolean;
+  /** Does the signed-in person hold this permission? */
+  can: (permission: string) => boolean;
+  /** Signed in as a person (not with an admin access key). */
+  hasUser: boolean;
+  /** Shown above the footer buttons, e.g. "owner@shop.com". */
+  userLabel?: string;
 };
 
 export function Layout({
@@ -79,6 +105,9 @@ export function Layout({
   theme,
   onThemeToggle,
   isAgency,
+  can,
+  hasUser,
+  userLabel,
 }: LayoutProps) {
   const t = useT();
   const { data: unread } = useQuery({
@@ -98,7 +127,12 @@ export function Layout({
     localStorage.setItem('sidebar_collapsed', String(newState));
   };
 
-  const visibleItems = NAV_ITEM_DEFS.filter((item) => !item.agencyOnly || isAgency);
+  const visibleItems = NAV_ITEM_DEFS.filter((item) => {
+    if (item.agencyOnly && !isAgency) return false;
+    if (item.id === 'team') return hasUser;
+    const needed = PAGE_PERMISSION[item.id];
+    return !needed || can(needed);
+  });
 
   const standardItems = visibleItems.filter(
     (item) => item.id !== 'setup/payments' && item.id !== 'setup/email'
@@ -150,7 +184,7 @@ export function Layout({
             <NavButton
               key={id}
               id={id}
-              label={t(labelKey)}
+              label={id === 'team' && !can('users.manage') ? t('team.account') : t(labelKey)}
               Icon={Icon}
               active={currentPage === id}
               collapsed={collapsed}
@@ -203,6 +237,13 @@ export function Layout({
           className="pt-3 space-y-0.5 border-t"
           style={{ borderColor: 'var(--sidebar-border)' }}
         >
+          {!collapsed && userLabel && (
+            <div className="px-2.5 pb-2 text-[11px] leading-snug break-all" style={{ color: 'var(--text-muted)' }}>
+              {t('nav.signedInAs')}
+              <br />
+              <span style={{ color: 'var(--sidebar-text)' }}>{userLabel}</span>
+            </div>
+          )}
           <button
             onClick={onThemeToggle}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-sm transition-colors hover:bg-[var(--bg-hover)]"

@@ -1,22 +1,26 @@
-import { getAuth } from './store';
+import { getAuth, AUTH_MODE } from './store';
 
 export class ApiError extends Error {
   constructor(
     public code: string,
     public status: number,
-    message: string
+    message: string,
+    public retryAfter?: number
   ) {
     super(message);
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const { apiUrl, apiKey } = getAuth();
+async function send<T>(path: string, options: RequestInit, announceExpiry: boolean): Promise<T> {
+  const { apiUrl, apiKey, sessionToken } = getAuth();
+  const bearer = sessionToken || apiKey;
 
   const res = await fetch(`${apiUrl}${path}`, {
     ...options,
+    // Cookie mode: the browser attaches the HttpOnly session cookie.
+    ...(AUTH_MODE === 'cookie' ? { credentials: 'include' as const } : {}),
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -24,15 +28,107 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    // A signed-in request that comes back 401 means the session ended: let the app return to sign-in.
+    if (res.status === 401 && announceExpiry) window.dispatchEvent(new Event('auth:expired'));
     throw new ApiError(
       err.error?.code || 'unknown',
       res.status,
-      err.error?.message || res.statusText
+      err.error?.message || res.statusText,
+      Number(res.headers.get('Retry-After')) || undefined
     );
   }
 
   return res.json();
 }
+
+const request = <T>(path: string, options: RequestInit = {}) => send<T>(path, options, true);
+/** For the sign-in calls themselves: a 401 here is a wrong code or password, not an expired session. */
+const authRequest = <T>(path: string, options: RequestInit = {}) => send<T>(path, options, false);
+
+// ─── Auth types ───────────────────────────────────────────────────────────────
+
+export type Role = 'owner' | 'manager' | 'staff' | 'agency';
+
+export type Me = {
+  kind: 'session' | 'api_key';
+  user: { id: string; email: string; name: string | null; role: Role } | null;
+  role: Role | null;
+  permissions: string[];
+};
+
+export type AuthConfig = {
+  methods: { link: boolean; code: boolean; password: boolean };
+  email_ready: boolean;
+  cookie_mode: boolean;
+};
+
+export type SignInResult = {
+  ok: true;
+  user: TeamUser;
+  role: Role;
+  permissions: string[];
+  expires_at: string;
+  session_token?: string;
+};
+
+export type TeamUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  status: 'active' | 'disabled';
+  has_password: boolean;
+  last_login_at: string | null;
+  created_at: string;
+};
+
+export type InviteResult = { user: TeamUser; invite_sent: boolean; invite_url?: string | null; invite_code?: string };
+
+export type AuthSettings = {
+  password_login: boolean;
+  kdf: 'pbkdf2' | 'scrypt';
+  iterations: number;
+  scrypt: { n: number; r: number; p: number };
+  session_days: number;
+  idle_days: number;
+  pepper_configured: boolean;
+  pbkdf2_max_iterations: number;
+  meets_owasp: boolean;
+};
+
+export type AuditItem = {
+  id: string;
+  at: string;
+  actor: string | null;
+  action: string;
+  target: string | null;
+  ip: string | null;
+  meta: unknown;
+};
+
+export type ApiKeyItem = {
+  id: string;
+  role: 'public' | 'admin';
+  key_prefix: string;
+  last4: string | null;
+  label: string | null;
+  created_at: string;
+  created_by: string | null;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  expires_at: string | null;
+  status: 'active' | 'expiring' | 'expired' | 'revoked';
+};
+
+export type SetupStatus = {
+  owner_exists: boolean;
+  email: { configured: boolean; provider: string | null };
+  stripe: { configured: boolean };
+  fedapay: { configured: boolean };
+  environment: { setup_token: boolean; password_pepper: boolean; admin_origins: boolean; admin_url: boolean; cookie_ready: boolean };
+  encryption: { enabled: boolean; plain_rows: string[] };
+  keys: { admin: number; public: number; legacy: number };
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1014,6 +1110,89 @@ export const api = {
   },
   async deleteBlock(id: string) {
     return request<{ deleted: true }>(`/v1/bookings/blocks/${id}`, { method: 'DELETE' });
+  },
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
+  authConfig() {
+    return authRequest<AuthConfig>('/v1/auth/config');
+  },
+  requestLoginLink(email: string, locale: 'fr' | 'en') {
+    return authRequest<{ ok: true; expires_in: number }>('/v1/auth/login-link', {
+      method: 'POST',
+      body: JSON.stringify({ email, locale }),
+    });
+  },
+  verifyLink(token: string) {
+    return authRequest<SignInResult>('/v1/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ token, mode: AUTH_MODE }),
+    });
+  },
+  verifyCode(email: string, code: string) {
+    return authRequest<SignInResult>('/v1/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, mode: AUTH_MODE }),
+    });
+  },
+  passwordLogin(email: string, password: string) {
+    return authRequest<SignInResult>('/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, mode: AUTH_MODE }),
+    });
+  },
+  me() {
+    return authRequest<Me>('/v1/auth/me');
+  },
+  logout() {
+    return authRequest<{ ok: true }>('/v1/auth/logout', { method: 'POST' });
+  },
+  logoutAll() {
+    return request<{ ok: true }>('/v1/auth/logout-all', { method: 'POST' });
+  },
+  setPassword(body: { current_password?: string; new_password: string }) {
+    return request<{ ok: true }>('/v1/auth/password', { method: 'PUT', body: JSON.stringify(body) });
+  },
+  getAuthSettings() {
+    return request<AuthSettings>('/v1/auth/settings');
+  },
+  saveAuthSettings(body: Partial<Pick<AuthSettings, 'password_login' | 'kdf' | 'iterations' | 'scrypt' | 'session_days' | 'idle_days'>>) {
+    return request<AuthSettings>('/v1/auth/settings', { method: 'PUT', body: JSON.stringify(body) });
+  },
+  getTeam() {
+    return request<{ items: TeamUser[] }>('/v1/auth/users');
+  },
+  inviteUser(body: { email: string; name?: string; role: Role; locale?: 'fr' | 'en' }) {
+    return request<InviteResult>('/v1/auth/users', { method: 'POST', body: JSON.stringify(body) });
+  },
+  resendInvite(id: string) {
+    return request<InviteResult>(`/v1/auth/users/${id}/invite`, { method: 'POST' });
+  },
+  updateUser(id: string, body: { name?: string | null; role?: Role; status?: 'active' | 'disabled' }) {
+    return request<{ user: TeamUser }>(`/v1/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  },
+  getApiKeys() {
+    return request<{ items: ApiKeyItem[] }>('/v1/auth/keys');
+  },
+  createApiKey(body: { role: 'public' | 'admin'; label?: string }) {
+    return request<{ key: ApiKeyItem; secret: string }>('/v1/auth/keys', { method: 'POST', body: JSON.stringify(body) });
+  },
+  rotateApiKey(id: string, graceHours: number) {
+    return request<{ key: ApiKeyItem; secret: string; old: ApiKeyItem }>(`/v1/auth/keys/${id}/rotate`, {
+      method: 'POST',
+      body: JSON.stringify({ grace_hours: graceHours }),
+    });
+  },
+  revokeApiKey(id: string) {
+    return request<{ key: ApiKeyItem }>(`/v1/auth/keys/${id}`, { method: 'DELETE' });
+  },
+  getSetupStatus() {
+    return request<SetupStatus>('/v1/auth/setup-status');
+  },
+  sealSecrets() {
+    return request<{ sealed: string[] }>('/v1/auth/secrets/seal', { method: 'POST' });
+  },
+  getAudit(limit = 50) {
+    return request<{ items: AuditItem[] }>(`/v1/auth/audit?limit=${limit}`);
   },
 
   // Health check (for login validation)

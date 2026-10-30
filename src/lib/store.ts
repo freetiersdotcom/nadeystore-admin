@@ -4,21 +4,63 @@ const API_KEY_KEY = 'merchant_api_key';
 const THEME_KEY = 'merchant_theme';
 const AGENCY_MODE_KEY = 'merchant_agency_mode';
 
+const SESSION_KEY = 'merchant_session';
+
+/**
+ * How a person's session travels.
+ *  - 'cookie': the API sets an HttpOnly cookie (admin and API on the same registrable
+ *    domain, e.g. admin.shop.com + api.shop.com). The token never reaches JavaScript.
+ *  - 'bearer' (default): the API returns a session token that is kept in sessionStorage
+ *    for this tab and sent as `Authorization: Bearer`. Used on workers.dev / pages.dev,
+ *    where the two sites differ, and for local development.
+ * Set VITE_AUTH_MODE=cookie in production once both live under the shop's domain.
+ */
+export const AUTH_MODE: 'cookie' | 'bearer' =
+  import.meta.env.VITE_AUTH_MODE === 'cookie' ? 'cookie' : 'bearer';
+
 export type AuthState = {
   apiUrl: string;
+  /** Legacy admin access key (agency use). */
   apiKey: string;
-  isAuthenticated: boolean;
+  /** Bearer session token of a signed-in person (bearer mode). */
+  sessionToken: string;
+  /** True when something is stored that could authenticate. Cookie mode has to ask the API. */
+  hasCredentials: boolean;
 };
+
+function readSession(): string {
+  try {
+    return sessionStorage.getItem(SESSION_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 export function getAuth(): AuthState {
   const apiUrl =
     import.meta.env.VITE_API_URL || localStorage.getItem(API_URL_KEY) || '';
   const apiKey = localStorage.getItem(API_KEY_KEY) || '';
+  const sessionToken = readSession();
   return {
     apiUrl,
     apiKey,
-    isAuthenticated: Boolean(apiUrl && apiKey),
+    sessionToken,
+    hasCredentials: Boolean(apiUrl && (apiKey || sessionToken || AUTH_MODE === 'cookie')),
   };
+}
+
+/** Remember the API address when it is not fixed by VITE_API_URL. */
+export function setApiUrl(apiUrl: string) {
+  if (!import.meta.env.VITE_API_URL) localStorage.setItem(API_URL_KEY, apiUrl);
+}
+
+export function setSessionToken(token: string) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, token);
+  } catch {
+    /* storage unavailable: the session lasts until reload */
+  }
+  localStorage.removeItem(API_KEY_KEY);
 }
 
 export function setAuth(apiKey: string) {
@@ -29,16 +71,31 @@ export function setAuth(apiKey: string) {
     localStorage.setItem(API_URL_KEY, 'http://localhost:8787');
   }
   localStorage.setItem(API_KEY_KEY, apiKey);
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function setAuthWithUrl(apiUrl: string, apiKey: string) {
   localStorage.setItem(API_URL_KEY, apiUrl);
   localStorage.setItem(API_KEY_KEY, apiKey);
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function clearAuth() {
   localStorage.removeItem(API_URL_KEY);
   localStorage.removeItem(API_KEY_KEY);
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getTheme(): 'light' | 'dark' {
