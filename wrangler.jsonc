@@ -6,7 +6,8 @@
   },
   "vars": {
 	"VITE_STORE_NAME": "Santé Natur'",
-	"VITE_API_URL": "https://nadeystore.freetiers-com.workers.dev"
+	"VITE_API_URL": "https://nadeystore.freetiers-com.workers.dev",
+	"VITE_AUTH_MODE":""
   },
   "upload_source_maps": true
 }
