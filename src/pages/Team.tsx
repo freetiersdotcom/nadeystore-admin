@@ -5,6 +5,7 @@ import { api, ApiError, type AuthSettings, type InviteResult, type Me, type Role
 import { useLocale, useT } from '../lib/locale-context';
 import { useIntlDate } from './teamDate';
 import { ApiKeys, SetupChecklist } from './ApiAccess';
+import { PasskeyCard } from './Passkeys';
 
 type Props = { me: Me; onSignedOut: () => void };
 
@@ -452,6 +453,8 @@ function MyAccount({ onSignedOut }: { onSignedOut: () => void }) {
       )}
       {msg && <p className="text-xs mt-3" style={{ color: 'var(--text-secondary)' }}>{msg}</p>}
       {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+
+      <PasskeyCard />
 
       <button
         onClick={() => outAll.mutate()}

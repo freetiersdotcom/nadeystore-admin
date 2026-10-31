@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Eye, EyeOff, Mail } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Mail, Fingerprint } from 'lucide-react';
+import { getPasskey, passkeyFailure, passkeysSupported } from '../lib/passkeys';
 import { getAgencyMode, setAgencyMode, setApiUrl, setSessionToken, AUTH_MODE } from '../lib/store';
 import { api, ApiError, type AuthConfig, type SignInResult } from '../lib/api';
 import { useLocale, useT } from '../lib/locale-context';
@@ -43,6 +44,7 @@ export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [agencyMode, setAgencyModeState] = useState(getAgencyMode());
+  const passkeyAttempt = useRef(false);
 
   // Triple-click on the logo reveals the agency toggle (unchanged behaviour).
   const logoClickCount = useRef(0);
@@ -87,6 +89,8 @@ export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
   }, [cooldown]);
 
   const explain = (err: unknown): string => {
+    if (err instanceof Error && err.message === 'cancelled') return t('login.passkeyCancelled');
+    if (err instanceof ApiError && err.status === 401 && passkeyAttempt.current) return t('login.passkeyFailed');
     if (err instanceof ApiError) {
       if (err.status === 429) return t('login.tooMany');
       if (err.code === 'password_login_disabled') return t('login.passwordOff');
@@ -110,6 +114,7 @@ export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
     } catch (err) {
       setError(explain(err));
     } finally {
+      passkeyAttempt.current = false;
       setLoading(false);
     }
   };
@@ -120,6 +125,19 @@ export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
       setCode('');
       setCooldown(RESEND_SECONDS);
       setStep('sent');
+    });
+
+  const passkeyLogin = () =>
+    run(async () => {
+      passkeyAttempt.current = true;
+      try {
+        const { challenge_id, options } = await api.passkeyLoginOptions();
+        const response = await getPasskey(options);
+        await finish(await api.passkeyLogin(challenge_id, response));
+      } catch (err) {
+        if (!(err instanceof ApiError) && passkeyFailure(err) === 'cancelled') throw new Error('cancelled');
+        throw err;
+      }
     });
 
   const verifyCode = () => run(async () => finish(await api.verifyCode(email.trim(), code.trim())));
@@ -259,6 +277,17 @@ export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
               )}
               {error && <p className="text-xs text-red-500 py-1">{error}</p>}
               {submitButton(t('login.sendLink'), t('login.sending'))}
+              {passkeysSupported() && (
+                <button
+                  type="button"
+                  onClick={() => void passkeyLogin()}
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 text-sm font-medium rounded-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)' }}
+                >
+                  <Fingerprint size={15} /> {t('login.usePasskey')}
+                </button>
+              )}
               <div className="flex items-center justify-between pt-1">
                 {config?.methods.password ? linkButton(t('login.usePassword'), () => go('password')) : <span />}
                 {linkButton(t('login.useKey'), () => go('key'))}

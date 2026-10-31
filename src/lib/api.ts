@@ -47,6 +47,11 @@ const authRequest = <T>(path: string, options: RequestInit = {}) => send<T>(path
 
 // ─── Auth types ───────────────────────────────────────────────────────────────
 
+export type Passkey = {
+  id: string; name: string | null; created_at: string; last_used_at: string | null;
+  device_type: string | null; backed_up: boolean; transports: string[];
+};
+
 export type Role = 'owner' | 'manager' | 'staff' | 'agency';
 
 export type Me = {
@@ -1151,6 +1156,28 @@ export const api = {
   },
   setPassword(body: { current_password?: string; new_password: string }) {
     return request<{ ok: true }>('/v1/auth/password', { method: 'PUT', body: JSON.stringify(body) });
+  },
+  // Passkeys
+  passkeyLoginOptions() {
+    return authRequest<{ challenge_id: string; options: Record<string, any> }>('/v1/auth/passkeys/login/options', { method: 'POST', body: '{}' });
+  },
+  passkeyLogin(challenge_id: string, response: Record<string, any>) {
+    return authRequest<SignInResult>('/v1/auth/passkeys/login/verify', {
+      method: 'POST',
+      body: JSON.stringify({ challenge_id, response, mode: AUTH_MODE }),
+    });
+  },
+  getPasskeys() {
+    return request<{ items: Passkey[] }>('/v1/auth/passkeys');
+  },
+  passkeyRegisterOptions() {
+    return request<{ challenge_id: string; options: Record<string, any> }>('/v1/auth/passkeys/register/options', { method: 'POST', body: '{}' });
+  },
+  passkeyRegister(challenge_id: string, response: Record<string, any>, name?: string) {
+    return request<{ passkey: Passkey }>('/v1/auth/passkeys/register/verify', { method: 'POST', body: JSON.stringify({ challenge_id, response, name }) });
+  },
+  deletePasskey(id: string) {
+    return request<{ ok: true }>(`/v1/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
   getAuthSettings() {
     return request<AuthSettings>('/v1/auth/settings');
