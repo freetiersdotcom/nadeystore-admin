@@ -31,7 +31,7 @@ export function ContactFields({ value, onChange, inputCls, inputStyle }: Props) 
     list.map((c) => <option key={c.iso} value={c.iso}>{label(c)}</option>);
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <select
         value={value.country}
         onChange={(e) => {
@@ -56,7 +56,7 @@ export function ContactFields({ value, onChange, inputCls, inputStyle }: Props) 
           style={inputStyle}
         />
       ) : <div />}
-      <div className="col-span-2 grid grid-cols-[110px_1fr] gap-2">
+      <div className="sm:col-span-2 grid grid-cols-[110px_1fr] gap-2">
         <select
           value={value.dial}
           onChange={(e) => onChange({ ...value, dial: e.target.value })}

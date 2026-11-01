@@ -16,6 +16,8 @@ import {
   Languages,
   MessageSquare,
   UserCog,
+  Menu,
+  X,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { Truck } from 'lucide-react';
@@ -117,6 +119,7 @@ export function Layout({
     });
   const { locale, toggleLocale } = useLocale();
 
+  const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
   );
@@ -141,26 +144,12 @@ export function Layout({
     (item) => item.id === 'setup/payments' || item.id === 'setup/email'
   );
 
-  return (
-    <div className="min-h-screen flex">
-      {/* Sidebar */}
-      <nav
-        className={clsx(
-          'relative flex flex-col border-r p-3 transition-all duration-200',
-          collapsed ? 'w-14' : 'w-56'
-        )}
-        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
-      >
-        {/* Collapse toggle */}
-        <button
-          onClick={toggleCollapse}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 p-1 rounded hover:bg-[var(--bg-hover)]"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
-        </button>
+  const go = (page: Page) => { setDrawer(false); onNavigate(page); };
 
-        {/* Logo */}
+  // The same menu is used by the desktop sidebar (collapsible) and the phone drawer (always full).
+  const navBody = (collapsed: boolean) => (
+    <>
+      {/* Logo */}
         <div className="flex items-center gap-2.5 px-2.5 py-2 mb-4">
           <svg
             className="w-5 h-5 flex-shrink-0"
@@ -188,7 +177,7 @@ export function Layout({
               Icon={Icon}
               active={currentPage === id}
               collapsed={collapsed}
-              onClick={() => onNavigate(id)}
+              onClick={() => go(id)}
               badge={id === 'messages' ? unread?.new : undefined}
             />
           ))}
@@ -225,7 +214,7 @@ export function Layout({
                   Icon={Icon}
                   active={currentPage === id}
                   collapsed={collapsed}
-                  onClick={() => onNavigate(id)}
+                  onClick={() => go(id)}
                 />
               ))}
             </>
@@ -276,11 +265,103 @@ export function Layout({
             {!collapsed && <span>{t('nav.signout')}</span>}
           </button>
         </div>
+    </>
+  );
+
+  const allowed = (id: Page) => visibleItems.some((i) => i.id === id);
+  const labelOf = (id: Page) => (id === 'team' && !can('users.manage') ? t('team.account') : t(NAV_ITEM_DEFS.find((d) => d.id === id)!.labelKey));
+  const tabs: Page[] = (['orders', 'customers', 'products', 'inventory'] as Page[]).filter(allowed).slice(0, 4);
+  const currentLabel = visibleItems.some((i) => i.id === currentPage) ? labelOf(currentPage) : '';
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Sidebar (tablet and desktop) */}
+      <nav
+        className={clsx(
+          'relative hidden md:flex flex-col border-r p-3 transition-all duration-200',
+          collapsed ? 'w-14' : 'w-56'
+        )}
+        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}
+      >
+        {/* Collapse toggle */}
+        <button
+          onClick={toggleCollapse}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 p-1 rounded hover:bg-[var(--bg-hover)]"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+        </button>
+
+        {navBody(collapsed)}
       </nav>
 
+      {/* Phone: top bar */}
+      <header
+        className="md:hidden fixed top-0 inset-x-0 z-30 h-12 flex items-center gap-2 px-2 border-b"
+        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)', paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <button
+          data-testid="menu-btn"
+          aria-label="Menu"
+          onClick={() => setDrawer(true)}
+          className="h-10 w-10 flex items-center justify-center rounded-md"
+          style={{ color: 'var(--text)' }}
+        >
+          <Menu size={20} />
+        </button>
+        <span className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>{currentLabel}</span>
+        {!!unread?.new && (
+          <button onClick={() => go('messages')} className="ml-auto text-[11px] px-2 py-1 rounded-full font-medium" style={{ background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-text)' }}>
+            {unread.new} <MessageSquare size={11} className="inline -mt-0.5" />
+          </button>
+        )}
+      </header>
+
+      {/* Phone: slide-in menu */}
+      {drawer && (
+        <div className="md:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawer(false)} />
+          <nav
+            data-testid="drawer"
+            className="absolute inset-y-0 left-0 w-72 max-w-[85vw] flex flex-col p-3 overflow-y-auto"
+            style={{ background: 'var(--sidebar-bg)', paddingTop: 'max(0.75rem, env(safe-area-inset-top))', paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+          >
+            <button onClick={() => setDrawer(false)} aria-label="Close" className="absolute right-2 top-2 h-10 w-10 flex items-center justify-center rounded-md" style={{ color: 'var(--text-muted)' }}>
+              <X size={18} />
+            </button>
+            {navBody(false)}
+          </nav>
+        </div>
+      )}
+
+      {/* Phone: bottom tabs for the pages used all day */}
+      {tabs.length > 0 && (
+        <nav
+          className="md:hidden fixed bottom-0 inset-x-0 z-30 grid border-t"
+          style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))`, background: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          {tabs.map((id) => {
+            const Icon = NAV_ITEM_DEFS.find((d) => d.id === id)!.icon;
+            const active = currentPage === id;
+            return (
+              <button key={id} onClick={() => go(id)} aria-label={labelOf(id)} aria-current={active ? 'page' : undefined}
+                className="h-14 flex flex-col items-center justify-center gap-0.5 text-[11px]"
+                style={{ color: active ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)', fontWeight: active ? 600 : 400 }}>
+                <Icon size={20} />
+                <span className="truncate max-w-full px-1">{labelOf(id)}</span>
+              </button>
+            );
+          })}
+          <button onClick={() => setDrawer(true)} aria-label="Menu" className="h-14 flex flex-col items-center justify-center gap-0.5 text-[11px]" style={{ color: 'var(--sidebar-text)' }}>
+            <Menu size={20} />
+            <span>Menu</span>
+          </button>
+        </nav>
+      )}
+
       {/* Main content */}
-      <main className="flex-1 overflow-auto" style={{ background: 'var(--bg-content)' }}>
-        <div className="p-6">{children}</div>
+      <main className="flex-1 min-w-0 overflow-auto" style={{ background: 'var(--bg-content)' }}>
+        <div className="p-3 pt-16 pb-24 md:p-6">{children}</div>
       </main>
     </div>
   );

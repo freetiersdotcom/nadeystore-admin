@@ -18,10 +18,12 @@ import {
   Mail,
   MapPin,
   ShoppingBag,
+  UserX,
 } from 'lucide-react';
 import { api, Customer } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { Modal } from '../components/Modal';
+import { cellLabel } from '../lib/table';
 import { useT } from '../lib/locale-context';
 import clsx from 'clsx';
 
@@ -34,11 +36,12 @@ export function Customers() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [erasedView, setErasedView] = useState(false);
 
   // Fetch customers
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => api.getCustomers({ limit: 100 }),
+    queryKey: ['customers', erasedView],
+    queryFn: () => api.getCustomers({ limit: 100, erased: erasedView ? 'only' : 'hide' }),
   });
 
   // Fetch selected customer details
@@ -70,13 +73,18 @@ export function Customers() {
 
   const columns = useMemo(
     () => [
+      columnHelper.accessor('email', {
+        header: t('customers.col.email'),
+        cell: (info) =>
+          info.row.original.erased ? (
+            <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>{t('customers.erased.label')}</span>
+          ) : (
+            <span className="font-mono text-sm">{info.getValue()}</span>
+          ),
+      }),
       columnHelper.accessor('name', {
         header: t('customers.col.name'),
         cell: (info) => <span className="font-mono text-sm">{info.getValue() || '-'}</span>,
-      }),
-      columnHelper.accessor('email', {
-        header: t('customers.col.email'),
-        cell: (info) => <span className="font-mono text-sm">{info.getValue()}</span>,
       }),
       columnHelper.accessor((row) => row.stats.order_count, {
         id: 'orders',
@@ -120,10 +128,27 @@ export function Customers() {
         <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
           {t('customers.title')}
         </h1>
-        {isFetching && !isLoading && (
-          <Loader2 className="animate-spin" size={16} style={{ color: 'var(--text-muted)' }} />
-        )}
+        <div className="flex items-center gap-3">
+          {isFetching && !isLoading && (
+            <Loader2 className="animate-spin" size={16} style={{ color: 'var(--text-muted)' }} />
+          )}
+          <button
+            onClick={() => { setErasedView((v) => !v); setSelectedCustomer(null); }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs min-h-[36px]"
+            style={{
+              border: '1px solid var(--border)',
+              color: erasedView ? 'var(--text)' : 'var(--text-secondary)',
+              background: erasedView ? 'var(--bg-hover)' : 'transparent',
+            }}
+          >
+            <UserX size={14} />
+            {erasedView ? t('customers.erased.back') : t('customers.erased.show')}
+          </button>
+        </div>
       </div>
+      {erasedView && (
+        <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{t('customers.erased.help')}</p>
+      )}
 
       {/* Table card */}
       <div
@@ -155,10 +180,10 @@ export function Customers() {
           </div>
         ) : customers.length === 0 ? (
           <div className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            {t('customers.empty')}
+            {erasedView ? t('customers.erased.empty') : t('customers.empty')}
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full rt">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -201,7 +226,7 @@ export function Customers() {
                   style={{ borderBottom: '1px solid var(--border-subtle)' }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} data-label={cellLabel(cell)} className="px-4 py-3">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -216,13 +241,22 @@ export function Customers() {
       <Modal
         open={!!selectedCustomer}
         onClose={() => setSelectedCustomer(null)}
-        title={customerDetail?.name || selectedCustomer?.email || t('customers.title')}
+        title={selectedCustomer?.erased ? t('customers.erased.label') : customerDetail?.name || selectedCustomer?.email || t('customers.title')}
         size="lg"
       >
         {selectedCustomer && (
           <div className="space-y-5">
+            {selectedCustomer.erased && (
+              <div className="p-3 rounded-lg text-sm" style={{ border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
+                <p className="font-medium mb-1" style={{ color: 'var(--text)' }}>{t('customers.erased.banner')}</p>
+                <p className="text-xs">
+                  {selectedCustomer.erased_at ? `${t('customers.erased.on')} ${new Date(selectedCustomer.erased_at).toLocaleDateString()}. ` : ''}
+                  {t('customers.erased.keptNote')}
+                </p>
+              </div>
+            )}
             {/* Two column layout */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Left column */}
               <div className="space-y-4">
                 {/* Contact Info */}
@@ -247,6 +281,7 @@ export function Customers() {
                       </label>
                       <input
                         type="text"
+                        disabled={selectedCustomer.erased}
                         defaultValue={customerDetail?.name || ''}
                         onBlur={(e) => {
                           if (e.target.value !== (customerDetail?.name || '')) {
@@ -257,7 +292,7 @@ export function Customers() {
                           }
                         }}
                         placeholder={t('customers.detail.namePlaceholder')}
-                        className="w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2"
+                        className="w-full px-3 py-2.5 md:py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed"
                         style={{
                           background: 'var(--bg-card)',
                           border: '1px solid var(--border)',
@@ -281,13 +316,17 @@ export function Customers() {
                         }}
                       >
                         <Mail size={14} style={{ color: 'var(--text-secondary)' }} />
-                        <a
-                          href={`mailto:${selectedCustomer.email}`}
-                          className="font-mono hover:underline"
-                          style={{ color: 'var(--accent)' }}
-                        >
-                          {selectedCustomer.email}
-                        </a>
+                        {selectedCustomer.erased ? (
+                          <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>{t('customers.erased.label')}</span>
+                        ) : (
+                          <a
+                            href={`mailto:${selectedCustomer.email}`}
+                            className="font-mono hover:underline break-all"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            {selectedCustomer.email}
+                          </a>
+                        )}
                       </div>
                     </div>
                     {/* Phone */}
@@ -300,6 +339,7 @@ export function Customers() {
                       </label>
                       <input
                         type="tel"
+                        disabled={selectedCustomer.erased}
                         defaultValue={customerDetail?.phone || ''}
                         onBlur={(e) => {
                           if (e.target.value !== (customerDetail?.phone || '')) {
@@ -310,7 +350,7 @@ export function Customers() {
                           }
                         }}
                         placeholder={t('customers.detail.phonePlaceholder')}
-                        className="w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2"
+                        className="w-full px-3 py-2.5 md:py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2 disabled:opacity-60 disabled:cursor-not-allowed"
                         style={{
                           background: 'var(--bg-card)',
                           border: '1px solid var(--border)',
@@ -327,7 +367,7 @@ export function Customers() {
                     <p className="text-xs uppercase" style={{ color: 'var(--text-secondary)' }}>
                       {t('customers.detail.totalOrders')}
                     </p>
-                    <p className="text-xl font-semibold font-mono mt-1">
+                    <p className="text-base md:text-xl font-semibold font-mono mt-1 break-words">
                       {selectedCustomer.stats.order_count}
                     </p>
                   </div>
@@ -335,7 +375,7 @@ export function Customers() {
                     <p className="text-xs uppercase" style={{ color: 'var(--text-secondary)' }}>
                       {t('customers.detail.totalSpent')}
                     </p>
-                    <p className="text-xl font-semibold font-mono mt-1">
+                    <p className="text-base md:text-xl font-semibold font-mono mt-1 break-words">
                       {formatPrice(selectedCustomer.stats.total_spent_cents)}
                     </p>
                   </div>

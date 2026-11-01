@@ -121,16 +121,16 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
   }
 
   const inputStyle = { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text)' };
-  const inputCls = 'w-full px-3 py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2';
+  const inputCls = 'w-full px-3 py-2.5 md:py-2 font-mono text-sm rounded-lg focus:outline-none focus:ring-2';
   const labelCls = 'block text-xs font-medium uppercase tracking-wide mb-1';
   const muted = { color: 'var(--text-secondary)' };
 
   return (
     <Modal open={open} onClose={onClose} title={t('orders.manual.title')} size="lg">
-      <div className="p-6 space-y-5">
+      <div className="md:p-6 space-y-5">
         <p className="text-sm" style={muted}>{t('orders.manual.help')}</p>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelCls} style={muted}>{t('orders.manual.email')} *</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} style={inputStyle} />
@@ -145,11 +145,11 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
           <label className={labelCls} style={muted}>{t('orders.manual.items')} *</label>
           <div className="space-y-2">
             {lines.map((l, i) => (
-              <div key={i} className="grid grid-cols-[1fr_70px_130px_auto] gap-2 items-center">
+              <div key={i} className="grid grid-cols-[1fr_1fr_auto] md:grid-cols-[1fr_70px_130px_auto] gap-2 items-center pb-3 border-b md:pb-0 md:border-0" style={{ borderColor: 'var(--border-subtle)' }}>
                 <select
                   value={l.sku}
                   onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, sku: e.target.value } : x)))}
-                  className={inputCls}
+                  className={inputCls + ' col-span-3 md:col-span-1'}
                   style={inputStyle}
                 >
                   <option value="">{t('orders.manual.item')}</option>
@@ -170,7 +170,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
                 <button
                   type="button"
                   onClick={() => setLines(lines.length > 1 ? lines.filter((_, j) => j !== i) : lines)}
-                  className="px-2 text-sm"
+                  className="px-2 h-10 w-10 md:h-auto md:w-auto text-sm"
                   style={{ color: 'var(--text-muted)' }}
                   aria-label="remove"
                 >
@@ -194,7 +194,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
 
         <div>
           <label className={labelCls} style={muted}>{t('orders.manual.address')}</label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="text" value={line1} onChange={(e) => setLine1(e.target.value)} placeholder={t('orders.manual.addressLine')} className={inputCls} style={inputStyle} />
             <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('orders.manual.city')} className={inputCls} style={inputStyle} />
           </div>
@@ -203,7 +203,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_1fr_90px] gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-[1fr_1fr_90px] gap-3">
           <div>
             <label className={labelCls} style={muted}>{t('orders.manual.paidNow')}</label>
             <input type="text" inputMode="decimal" value={paidNow} onChange={(e) => setPaidNow(e.target.value)} className={inputCls} style={inputStyle} />
@@ -224,7 +224,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="sticky bottom-0 -mx-4 px-4 py-3 md:static md:mx-0 md:px-0 md:py-0 flex items-center justify-end gap-3 border-t md:border-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <button type="button" onClick={onClose} className="text-sm hover:underline" style={{ color: 'var(--text-muted)' }}>
             {t('orders.manual.cancel')}
           </button>
@@ -232,7 +232,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
             type="button"
             onClick={submit}
             disabled={mutation.isPending}
-            className="px-4 py-2 text-sm font-medium rounded-lg disabled:opacity-50"
+            className="flex-1 md:flex-none px-4 py-3 md:py-2 text-sm font-medium rounded-lg disabled:opacity-50"
             style={{ background: 'var(--text)', color: 'var(--bg-card)' }}
           >
             {t('orders.manual.submit')}

@@ -28,6 +28,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api, Product, Variant } from '../lib/api';
+import { cellLabel } from '../lib/table';
 import { formatPrice } from '../lib/format';
 import { assetDownloadUrl, assetDisplayName, assetFilename, formatFileSize } from '../lib/asset-helpers';
 import { StatusBadge } from '../components/StatusBadge';
@@ -492,7 +493,7 @@ export function Products() {
             {t('products.empty')}
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full rt">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -532,7 +533,7 @@ export function Products() {
                   style={{ borderBottom: '1px solid var(--border-subtle)' }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} data-label={cellLabel(cell)} className="px-4 py-3">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

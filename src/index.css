@@ -96,3 +96,17 @@ select {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ── Phones: table rows become stacked cards (tables marked with class "rt") ── */
+
+@media (max-width: 767px) {
+  table.rt, table.rt tbody { display: block; width: 100%; }
+  table.rt thead { display: none; }
+  table.rt tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; padding: 12px; }
+  table.rt td { display: block; padding: 0 !important; min-width: 0; overflow-wrap: anywhere; }
+  table.rt td:first-child { grid-column: 1 / -1; font-weight: 600; }
+  table.rt td::before { content: attr(data-label); display: block; font-size: 10px; line-height: 1.2; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); font-weight: 400; margin-bottom: 2px; font-family: var(--font-sans); }
+  table.rt td[data-label=""]::before, table.rt td:first-child::before { display: none; }
+  /* Inputs stay at 16px so iOS does not zoom the page when one is focused. */
+  input, select, textarea { font-size: 16px; }
+}

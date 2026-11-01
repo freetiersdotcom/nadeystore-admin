@@ -305,6 +305,9 @@ export type Customer = {
   name: string | null;
   phone: string | null;
   has_account: boolean;
+  /** The customer erased their account: contact details are gone, order records remain. */
+  erased: boolean;
+  erased_at: string | null;
   accepts_marketing: boolean;
   stats: {
     order_count: number;
@@ -946,11 +949,12 @@ export const api = {
   },
 
   // Customers
-  async getCustomers(params?: { limit?: number; cursor?: string; search?: string }) {
+  async getCustomers(params?: { limit?: number; cursor?: string; search?: string; erased?: 'hide' | 'only' | 'all' }) {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.erased) searchParams.set('erased', params.erased);
     const query = searchParams.toString();
     return request<PaginatedResponse<Customer>>(`/v1/customers${query ? `?${query}` : ''}`);
   },

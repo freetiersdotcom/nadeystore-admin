@@ -293,6 +293,14 @@ export const translations = {
     'orders.manual.invalid':        'Enter an email and at least one item with a valid quantity.',
 
     // ── Customers ─────────────────────────────────────────────
+    'customers.erased.show':              'Erased accounts',
+    'customers.erased.back':              'Back to customers',
+    'customers.erased.label':             'Erased account',
+    'customers.erased.empty':             'No erased accounts.',
+    'customers.erased.help':              'These customers asked for their account to be erased. Their contact details are gone; only the order records we must keep remain.',
+    'customers.erased.banner':            'This account was erased at the customer’s request',
+    'customers.erased.on':                'Erased on',
+    'customers.erased.keptNote':          'Contact details, addresses and sign-in methods were deleted. Past orders are kept for accounting and cannot be linked back to an account.',
     'customers.title':                    'Customers',
     'customers.empty':                    'No customers yet. Customers are created automatically when orders are placed.',
     'customers.search':                   'Search...',
@@ -988,6 +996,14 @@ export const translations = {
     'orders.manual.invalid':        'Saisissez un e-mail et au moins un article avec une quantité valide.',
 
     // ── Customers ─────────────────────────────────────────────
+    'customers.erased.show':              'Comptes effacés',
+    'customers.erased.back':              'Retour aux clients',
+    'customers.erased.label':             'Compte effacé',
+    'customers.erased.empty':             'Aucun compte effacé.',
+    'customers.erased.help':              'Ces clients ont demandé l’effacement de leur compte. Leurs coordonnées ont disparu ; seuls les enregistrements de commandes à conserver restent.',
+    'customers.erased.banner':            'Ce compte a été effacé à la demande du client',
+    'customers.erased.on':                'Effacé le',
+    'customers.erased.keptNote':          'Coordonnées, adresses et moyens de connexion supprimés. Les commandes passées sont conservées pour la comptabilité et ne sont plus rattachées à un compte.',
     'customers.title':                    'Clients',
     'customers.empty':                    "Aucun client pour l'instant. Les clients sont créés automatiquement à la passation des commandes.",
     'customers.search':                   'Rechercher...',

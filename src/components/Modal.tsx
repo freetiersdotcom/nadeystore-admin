@@ -44,12 +44,12 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
 
       {/* Modal */}
       <div
-        className={clsx('relative w-full shadow-2xl my-8 mx-4', sizes[size])}
+        className={clsx('relative w-full shadow-2xl min-h-[100dvh] md:min-h-0 my-0 mx-0 md:my-8 md:mx-4', sizes[size])}
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         {/* Header */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
+          className="sticky top-0 z-10 flex items-center justify-between px-4 md:px-6 py-3 md:py-4"
           style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}
         >
           <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
@@ -57,7 +57,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           </h3>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-[var(--bg-hover)] transition-colors"
+            className="h-10 w-10 md:h-auto md:w-auto md:p-1.5 flex items-center justify-center hover:bg-[var(--bg-hover)] transition-colors"
             style={{ color: 'var(--text-muted)' }}
           >
             <X size={18} />
@@ -65,7 +65,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
         </div>
 
         {/* Content */}
-        <div className="px-6 py-5 max-h-[80vh] overflow-y-auto">{children}</div>
+        <div className="px-4 md:px-6 py-4 md:py-5 md:max-h-[80vh] md:overflow-y-auto" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>{children}</div>
       </div>
     </div>
   );

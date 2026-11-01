@@ -23,6 +23,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { api, Order, RefundMethod } from '../lib/api';
+import { cellLabel } from '../lib/table';
 import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
@@ -306,11 +307,11 @@ export function Orders() {
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         {/* Filters */}
-        <div className="flex items-center border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex flex-wrap md:flex-nowrap items-stretch border-b" style={{ borderColor: 'var(--border)' }}>
           {/* Search */}
           <div
-            className="flex-1 flex items-center gap-2 px-4 py-3"
-            style={{ color: 'var(--text-muted)' }}
+            className="flex-1 basis-full md:basis-0 min-w-0 flex items-center gap-2 px-4 py-3 border-b md:border-b-0"
+            style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}
           >
             <Search size={16} className="flex-shrink-0" />
             <input
@@ -327,7 +328,7 @@ export function Orders() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-full px-4 py-3 font-mono text-sm bg-transparent border-0 border-l focus:outline-none cursor-pointer"
+            className="px-3 md:px-4 py-3 font-mono text-sm bg-transparent border-0 md:border-l focus:outline-none cursor-pointer"
             style={{
               borderColor: 'var(--border)',
               color: statusFilter ? 'var(--text)' : 'var(--text-muted)',
@@ -344,7 +345,7 @@ export function Orders() {
           {/* Needs-review filter */}
           <button
             onClick={() => setNeedsReviewOnly((v) => !v)}
-            className="h-full flex items-center gap-1.5 px-4 py-3 font-mono text-sm border-l focus:outline-none"
+            className="h-full flex items-center gap-1.5 px-3 md:px-4 py-3 font-mono text-sm whitespace-nowrap border-l focus:outline-none"
             style={{
               borderColor: 'var(--border)',
               color: needsReviewOnly ? 'var(--text)' : 'var(--text-muted)',
@@ -358,7 +359,7 @@ export function Orders() {
           {/* Services still to schedule */}
           <button
             onClick={() => setToScheduleOnly((v) => !v)}
-            className="h-full flex items-center gap-1.5 px-4 py-3 font-mono text-sm border-l focus:outline-none"
+            className="h-full flex items-center gap-1.5 px-3 md:px-4 py-3 font-mono text-sm whitespace-nowrap border-l focus:outline-none"
             style={{
               borderColor: 'var(--border)',
               color: toScheduleOnly ? 'var(--text)' : 'var(--text-muted)',
@@ -371,7 +372,7 @@ export function Orders() {
           {/* Orders with a balance still to collect */}
           <button
             onClick={() => setBalanceDueOnly((v) => !v)}
-            className="h-full flex items-center gap-1.5 px-4 py-3 font-mono text-sm border-l focus:outline-none"
+            className="h-full flex items-center gap-1.5 px-3 md:px-4 py-3 font-mono text-sm whitespace-nowrap border-l focus:outline-none"
             style={{
               borderColor: 'var(--border)',
               color: balanceDueOnly ? 'var(--text)' : 'var(--text-muted)',
@@ -392,7 +393,7 @@ export function Orders() {
             {t('orders.empty')}
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full rt">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -435,7 +436,7 @@ export function Orders() {
                   style={{ borderBottom: '1px solid var(--border-subtle)' }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} data-label={cellLabel(cell)} className="px-4 py-3">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -525,7 +526,7 @@ export function Orders() {
             )}
 
             {/* Two column layout */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Left column */}
               <div className="space-y-4">
                 {/* Customer */}
@@ -676,7 +677,7 @@ export function Orders() {
 
             {/* Status & Tracking */}
             <div
-              className="grid grid-cols-2 gap-5 pt-4 border-t"
+              className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t"
               style={{ borderColor: 'var(--border)' }}
             >
               {/* Status Update */}

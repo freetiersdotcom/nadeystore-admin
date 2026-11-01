@@ -20,6 +20,7 @@ import {
   Package,
 } from 'lucide-react';
 import { api, InventoryItem } from '../lib/api';
+import { cellLabel } from '../lib/table';
 import { Modal } from '../components/Modal';
 import { useT } from '../lib/locale-context';
 import clsx from 'clsx';
@@ -168,7 +169,7 @@ export function Inventory() {
             {t('inventory.empty')}
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full rt">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -219,7 +220,7 @@ export function Inventory() {
                   style={{ borderBottom: '1px solid var(--border-subtle)' }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} data-label={cellLabel(cell)} className="px-4 py-3">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
