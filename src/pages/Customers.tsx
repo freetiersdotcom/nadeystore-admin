@@ -76,8 +76,10 @@ export function Customers() {
       columnHelper.accessor('email', {
         header: t('customers.col.email'),
         cell: (info) =>
-          info.row.original.erased ? (
-            <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>{t('customers.erased.label')}</span>
+          info.row.original.erased || info.row.original.walk_in ? (
+            <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
+              {info.row.original.walk_in ? t('customers.walkIn.label') : t('customers.erased.label')}
+            </span>
           ) : (
             <span className="font-mono text-sm">{info.getValue()}</span>
           ),
@@ -241,11 +243,16 @@ export function Customers() {
       <Modal
         open={!!selectedCustomer}
         onClose={() => setSelectedCustomer(null)}
-        title={selectedCustomer?.erased ? t('customers.erased.label') : customerDetail?.name || selectedCustomer?.email || t('customers.title')}
+        title={selectedCustomer?.walk_in ? t('customers.walkIn.label') : selectedCustomer?.erased ? t('customers.erased.label') : customerDetail?.name || selectedCustomer?.email || t('customers.title')}
         size="lg"
       >
         {selectedCustomer && (
           <div className="space-y-5">
+            {selectedCustomer.walk_in && (
+              <div className="p-3 rounded-lg text-sm" style={{ border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
+                {t('customers.walkIn.banner')}
+              </div>
+            )}
             {selectedCustomer.erased && (
               <div className="p-3 rounded-lg text-sm" style={{ border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
                 <p className="font-medium mb-1" style={{ color: 'var(--text)' }}>{t('customers.erased.banner')}</p>
@@ -281,7 +288,7 @@ export function Customers() {
                       </label>
                       <input
                         type="text"
-                        disabled={selectedCustomer.erased}
+                        disabled={selectedCustomer.erased || !!selectedCustomer.walk_in}
                         defaultValue={customerDetail?.name || ''}
                         onBlur={(e) => {
                           if (e.target.value !== (customerDetail?.name || '')) {
@@ -316,8 +323,8 @@ export function Customers() {
                         }}
                       >
                         <Mail size={14} style={{ color: 'var(--text-secondary)' }} />
-                        {selectedCustomer.erased ? (
-                          <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>{t('customers.erased.label')}</span>
+                        {selectedCustomer.erased || selectedCustomer.walk_in ? (
+                          <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>{selectedCustomer.walk_in ? t('customers.walkIn.label') : t('customers.erased.label')}</span>
                         ) : (
                           <a
                             href={`mailto:${selectedCustomer.email}`}
@@ -339,7 +346,7 @@ export function Customers() {
                       </label>
                       <input
                         type="tel"
-                        disabled={selectedCustomer.erased}
+                        disabled={selectedCustomer.erased || !!selectedCustomer.walk_in}
                         defaultValue={customerDetail?.phone || ''}
                         onBlur={(e) => {
                           if (e.target.value !== (customerDetail?.phone || '')) {

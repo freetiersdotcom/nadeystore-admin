@@ -229,6 +229,10 @@ export type Order = {
   service_note?: string | null;
   customer_email: string;
   customer_id?: string | null;
+  /** Name of the delivery option chosen, when there was one. */
+  delivery_option?: string | null;
+  /** Counter sale recorded without a customer email. */
+  walk_in?: boolean;
   shipping?: {
     name: string | null;
     phone: string | null;
@@ -308,6 +312,8 @@ export type Customer = {
   /** The customer erased their account: contact details are gone, order records remain. */
   erased: boolean;
   erased_at: string | null;
+  /** The shared customer that counter sales without an email are recorded on. */
+  walk_in?: boolean;
   accepts_marketing: boolean;
   stats: {
     order_count: number;
@@ -652,8 +658,22 @@ export const api = {
     return request<OrderPayments>(`/v1/orders/${id}/payments/${paymentId}`, { method: 'DELETE' });
   },
 
+  async quoteManualOrder(body: {
+    items: Array<{ sku: string; qty: number; unit_price_cents?: number }>;
+    currency: string;
+    address: { country: string; city?: string };
+  }) {
+    return request<{
+      needed: boolean;
+      deliverable: boolean;
+      options: Array<{ id: string; kind: 'flat' | 'weight' | 'pickup'; name_fr: string; name_en: string; cents: number; free: boolean }>;
+    }>('/v1/orders/manual/quote', { method: 'POST', body: JSON.stringify(body) });
+  },
+
   async createManualOrder(body: {
-    customer_email: string;
+    customer_email?: string;
+    locale?: 'fr' | 'en';
+    shipping?: { rate_id: string } | { custom_cents: number; label?: string };
     customer_name?: string;
     currency?: string;
     address?: { line1: string; city: string; postal_code?: string; phone?: string; country: string };

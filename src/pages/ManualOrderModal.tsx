@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { Modal } from '../components/Modal';
-import { useT } from '../lib/locale-context';
+import { useT, useLocale } from '../lib/locale-context';
 import { ContactFields, emptyContact, contactPayload } from '../components/ContactFields';
 import { postalRule, buildPhone } from '../lib/geo';
 
@@ -23,6 +23,7 @@ type Props = {
 
 export function ManualOrderModal({ open, onClose, onCreated }: Props) {
   const t = useT();
+  const { locale } = useLocale();
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -33,6 +34,10 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
   const [lines, setLines] = useState<Line[]>([{ sku: '', qty: '1', price: '' }]);
   const [paidNow, setPaidNow] = useState('');
   const [method, setMethod] = useState<(typeof METHODS)[number]>('cash');
+  // Delivery: 'none' (counter sale), a stored delivery option id, or 'custom' (a price agreed by hand).
+  const [delivery, setDelivery] = useState<string>('none');
+  const [customDelivery, setCustomDelivery] = useState('');
+  const [customLabel, setCustomLabel] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const { data: products } = useQuery({
@@ -54,12 +59,33 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
   const factor = ZERO_DECIMAL.has(currency.toUpperCase()) ? 1 : 100;
   const toCents = (s: string) => Math.round(Number(s.replace(',', '.')) * factor);
 
-  const total = lines.reduce((sum, l) => {
+  const pricedLines = lines.filter((l) => l.sku && parseInt(l.qty, 10) > 0);
+  const goodsTotal = lines.reduce((sum, l) => {
     const v = variants.find((x) => x.sku === l.sku);
     const qty = parseInt(l.qty, 10) || 0;
     const unit = l.price.trim() !== '' ? toCents(l.price) : (v?.price ?? 0);
     return sum + (Number.isFinite(unit) ? unit : 0) * qty;
   }, 0);
+
+  // The same delivery options customers would see, for this cart and destination.
+  const country = contact.country;
+  const quoteKey = JSON.stringify([pricedLines.map((l) => [l.sku, l.qty, l.price]), currency, country, city.trim()]);
+  const { data: quote } = useQuery({
+    queryKey: ['manual-order-quote', quoteKey],
+    queryFn: () =>
+      api.quoteManualOrder({
+        items: pricedLines.map((l) => ({ sku: l.sku, qty: parseInt(l.qty, 10), unit_price_cents: l.price.trim() !== '' ? toCents(l.price) : undefined })),
+        currency: currency.toUpperCase(),
+        address: { country, city: city.trim() || undefined },
+      }),
+    enabled: open && pricedLines.length > 0 && !!country && currency.length === 3,
+    retry: false,
+  });
+  const options = quote?.deliverable ? quote.options : [];
+  const chosenOption = options.find((o) => o.id === delivery);
+  const customCents = delivery === 'custom' && customDelivery.trim() !== '' ? toCents(customDelivery) : 0;
+  const deliveryCents = chosenOption ? chosenOption.cents : Number.isFinite(customCents) ? customCents : 0;
+  const total = goodsTotal + deliveryCents;
 
   const mutation = useMutation({
     mutationFn: (body: Parameters<typeof api.createManualOrder>[0]) => api.createManualOrder(body),
@@ -75,6 +101,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
     setEmail(''); setName(''); setLine1(''); setCity(''); setContact(emptyContact());
     setLines([{ sku: '', qty: '1', price: '' }]);
     setPaidNow(''); setMethod('cash'); setError(null);
+    setDelivery('none'); setCustomDelivery(''); setCustomLabel('');
   }
 
   function submit() {
@@ -85,7 +112,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
         qty: parseInt(l.qty, 10),
         unit_price_cents: l.price.trim() !== '' ? toCents(l.price) : undefined,
       }));
-    if (!email.trim() || items.length === 0 || items.some((i) => !Number.isInteger(i.qty) || i.qty <= 0)) {
+    if ((email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) || items.length === 0 || items.some((i) => !Number.isInteger(i.qty) || i.qty <= 0)) {
       setError(t('orders.manual.invalid'));
       return;
     }
@@ -107,15 +134,26 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
       }
       payment = { amount_cents: cents, method };
     }
+    // A delivery option only means something with its address; a custom one needs an amount.
+    let shipping: Parameters<typeof api.createManualOrder>[0]['shipping'];
+    if (delivery === 'custom') {
+      if (!Number.isFinite(customCents) || customDelivery.trim() === '') { setError(t('orders.manual.deliveryInvalid')); return; }
+      shipping = { custom_cents: customCents, label: customLabel.trim() || undefined };
+    } else if (delivery !== 'none') {
+      if (!chosenOption) { setError(t('orders.manual.deliveryGone')); return; }
+      shipping = { rate_id: chosenOption.id };
+    }
     setError(null);
     mutation.mutate({
-      customer_email: email.trim(),
+      customer_email: email.trim() || undefined,
       customer_name: name.trim() || undefined,
       currency: currency.toUpperCase(),
       address: hasAddress
         ? { line1: line1.trim(), city: city.trim(), ...contactPayload(contact) }
         : undefined,
       items,
+      shipping,
+      locale,
       payment,
     });
   }
@@ -132,8 +170,8 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls} style={muted}>{t('orders.manual.email')} *</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} style={inputStyle} />
+            <label className={labelCls} style={muted}>{t('orders.manual.email')}</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('orders.manual.emailPlaceholder')} className={inputCls} style={inputStyle} />
           </div>
           <div>
             <label className={labelCls} style={muted}>{t('orders.manual.name')}</label>
@@ -188,6 +226,7 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
             + {t('orders.manual.addItem')}
           </button>
           <p className="mt-2 font-mono text-sm text-right">
+            {deliveryCents > 0 && <span className="block text-xs" style={muted}>{t('orders.manual.delivery')}: {formatPrice(deliveryCents, currency)}</span>}
             {t('orders.manual.total')}: {formatPrice(total, currency)}
           </p>
         </div>
@@ -201,6 +240,35 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
           <div className="mt-3">
             <ContactFields value={contact} onChange={setContact} inputCls={inputCls} inputStyle={inputStyle} />
           </div>
+        </div>
+
+        <div>
+          <label className={labelCls} style={muted}>{t('orders.manual.delivery')}</label>
+          <select
+            value={delivery === 'custom' || chosenOption ? delivery : 'none'}
+            onChange={(e) => setDelivery(e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+            data-testid="delivery-select"
+          >
+            <option value="none">{t('orders.manual.deliveryNone')}</option>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {(locale === 'en' ? o.name_en : o.name_fr)} · {o.cents === 0 ? t('orders.manual.deliveryFree') : formatPrice(o.cents, currency)}
+              </option>
+            ))}
+            <option value="custom">{t('orders.manual.deliveryCustom')}</option>
+          </select>
+          {!country && <p className="mt-1 text-xs" style={muted}>{t('orders.manual.deliveryHint')}</p>}
+          {quote && quote.deliverable === false && quote.needed !== false && country && (
+            <p className="mt-1 text-xs" style={muted}>{t('orders.manual.deliveryNoZone')}</p>
+          )}
+          {delivery === 'custom' && (
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <input type="text" inputMode="decimal" value={customDelivery} onChange={(e) => setCustomDelivery(e.target.value)} placeholder={t('orders.manual.deliveryAmount')} className={inputCls} style={inputStyle} />
+              <input type="text" value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} placeholder={t('orders.manual.deliveryLabel')} className={inputCls} style={inputStyle} />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-[1fr_1fr_90px] gap-3">

@@ -23,7 +23,6 @@ import {
   Plus,
 } from 'lucide-react';
 import { api, Order, RefundMethod } from '../lib/api';
-import { cellLabel } from '../lib/table';
 import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
@@ -32,6 +31,7 @@ import { ManualOrderModal } from './ManualOrderModal';
 import { PlanPanel } from './PlanPanel';
 import { PlanSettingsModal } from './PlanSettingsModal';
 import clsx from 'clsx';
+import { cellLabel } from '../lib/table';
 import { useT } from '../lib/locale-context';
 
 const columnHelper = createColumnHelper<Order>();
@@ -190,7 +190,12 @@ export function Orders() {
       }),
       columnHelper.accessor('customer_email', {
         header: t('orders.col.customer'),
-        cell: (info) => <span className="font-mono text-sm">{info.getValue() || '-'}</span>,
+        cell: (info) =>
+          info.row.original.walk_in ? (
+            <span className="text-sm italic" style={{ color: 'var(--text-muted)' }}>{t('orders.walkIn')}</span>
+          ) : (
+            <span className="font-mono text-sm">{info.getValue() || '-'}</span>
+          ),
       }),
       columnHelper.accessor('status', {
         header: t('orders.col.status'),
@@ -236,6 +241,11 @@ export function Orders() {
             )}
           </div>
         ),
+      }),
+      columnHelper.accessor((row) => row.delivery_option || '', {
+        id: 'delivery',
+        header: t('orders.col.delivery'),
+        cell: (info) => <span className="font-mono text-sm">{info.getValue() || '-'}</span>,
       }),
       columnHelper.accessor((row) => row.amounts.total_cents, {
         id: 'total',
@@ -541,7 +551,7 @@ export function Orders() {
                     <p className="font-mono text-sm font-medium">{selectedOrder.shipping.name}</p>
                   )}
                   <p className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {selectedOrder.customer_email}
+                    {selectedOrder.walk_in ? t('orders.walkIn') : selectedOrder.customer_email}
                   </p>
                   {selectedOrder.shipping?.phone && (
                     <p
@@ -656,7 +666,10 @@ export function Orders() {
                       <span>{formatPrice(selectedOrder.amounts.tax_cents)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span style={{ color: 'var(--text-secondary)' }}>{t('orders.detail.shippingCost')}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        {t('orders.detail.shippingCost')}
+                        {selectedOrder.delivery_option ? ` · ${selectedOrder.delivery_option}` : ''}
+                      </span>
                       <span>
                         {selectedOrder.amounts.shipping_cents === 0
                           ? t('orders.detail.free')
