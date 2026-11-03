@@ -109,4 +109,9 @@ select {
   table.rt td[data-label=""]::before, table.rt td:first-child::before { display: none; }
   /* Inputs stay at 16px so iOS does not zoom the page when one is focused. */
   input, select, textarea { font-size: 16px; }
+  /* Finger-sized targets: tiny checkboxes, icon-only buttons and small pills were hard to hit. */
+  input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; flex-shrink: 0; }
+  button.tap, table.rt td button { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+  table.rt td button[class*="px-2"] { min-width: 0; padding-left: 12px; padding-right: 12px; }
+  main button.chip, button.chip { min-height: 40px; }
 }

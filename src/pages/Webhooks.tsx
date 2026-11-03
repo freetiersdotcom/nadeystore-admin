@@ -166,24 +166,24 @@ export function Webhooks() {
                 onClick={() => setSelectedWebhook(webhook.id)}
                 className="px-4 py-4 cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={clsx(
-                        'w-2 h-2 rounded-full',
+                        'w-2 h-2 rounded-full shrink-0',
                         webhook.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
                       )}
                     />
-                    <div>
-                      <p className="font-mono text-sm">{webhook.url}</p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm break-all">{webhook.url}</p>
+                      <p className="text-xs mt-0.5 break-words" style={{ color: 'var(--text-muted)' }}>
                         {webhook.events.join(', ')}
                       </p>
                     </div>
                   </div>
                   <span
                     className={clsx(
-                      'text-xs px-2 py-0.5 rounded',
+                      'text-xs px-2 py-0.5 rounded shrink-0',
                       webhook.status === 'active'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
@@ -409,7 +409,7 @@ export function Webhooks() {
                   {webhookDetail.recent_deliveries.map((delivery) => (
                     <div
                       key={delivery.id}
-                      className="flex items-center justify-between py-2 border-b last:border-0"
+                      className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 border-b last:border-0"
                       style={{ borderColor: 'var(--border-subtle)' }}
                     >
                       <div className="flex items-center gap-2">
@@ -444,13 +444,13 @@ export function Webhooks() {
 
             {/* Footer: Timestamp + Actions */}
             <div
-              className="flex items-center justify-between pt-4 border-t"
+              className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t"
               style={{ borderColor: 'var(--border)' }}
             >
               <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                 {t('common.createdAt')} {new Date(webhookDetail.created_at).toLocaleString()}
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <button
                   onClick={() => {
                     if (confirm(t('webhooks.detail.rotateConfirm'))) {

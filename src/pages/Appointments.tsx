@@ -337,7 +337,7 @@ function ServicesTab() {
                             <span>–</span>
                             <input type="time" className={clsx(inputCls, 'w-32')} value={r.end}
                               onChange={(e) => set({ rules: draft.rules.map((x, j) => j === i ? { ...x, end: e.target.value } : x) })} />
-                            <button className="p-1 text-gray-400 hover:text-red-600" onClick={() => set({ rules: draft.rules.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>
+                            <button className="tap p-1 text-gray-400 hover:text-red-600" onClick={() => set({ rules: draft.rules.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>
                           </div>
                         ))}
                       </div>
@@ -436,7 +436,7 @@ function BlocksTab() {
           {(q.data?.blocks ?? []).map((b) => (
             <li key={b.id} className="p-3 flex items-center justify-between gap-3 text-sm">
               <span>{fmtDateTime(b.starts_at, loc)} → {fmtDateTime(b.ends_at, loc)}{b.note ? <span className="text-gray-500"> · {b.note}</span> : null}</span>
-              <button className="p-1 text-gray-400 hover:text-red-600" onClick={() => del.mutate(b.id)}><Trash2 size={14} /></button>
+              <button className="tap p-1 text-gray-400 hover:text-red-600" onClick={() => del.mutate(b.id)}><Trash2 size={14} /></button>
             </li>
           ))}
         </ul>

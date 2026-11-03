@@ -164,7 +164,7 @@ export function Discounts() {
               setForm({ ...emptyForm(), code: generateCode(), type: preset.type, value: preset.value });
               setCreateModal(true);
             }}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
+            className="chip px-3 py-1.5 text-xs font-medium rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
             style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             + {preset.label}
@@ -183,7 +183,7 @@ export function Discounts() {
             {t('discounts.empty')}
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full rt">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {[
@@ -205,27 +205,27 @@ export function Discounts() {
                 const status = discountStatus(d);
                 return (
                   <tr key={d.id} className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td className="px-4 py-3">
+                    <td data-label={t('discounts.col.code')} className="px-4 py-3">
                       <span className="font-mono text-sm font-medium tracking-wide">{d.code}</span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-sm">{formatValue(d)}</td>
-                    <td className="px-4 py-3 font-mono text-sm">
+                    <td data-label={t('discounts.col.value')} className="px-4 py-3 font-mono text-sm">{formatValue(d)}</td>
+                    <td data-label={t('discounts.col.usage')} className="px-4 py-3 font-mono text-sm">
                       {d.usage_count}
                       {d.usage_limit !== null ? ` / ${d.usage_limit}` : ''}
                     </td>
-                    <td className="px-4 py-3 font-mono text-sm" style={{ color: 'var(--text-muted)' }}>
+                    <td data-label={t('discounts.col.expires')} className="px-4 py-3 font-mono text-sm" style={{ color: 'var(--text-muted)' }}>
                       {d.expires_at ? new Date(d.expires_at).toLocaleDateString() : '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label={t('discounts.col.status')} className="px-4 py-3">
                       <span className={clsx('inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-sm', statusStyles[status])}>
                         {t(`common.${status}` as any)}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                    <td data-label="" className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1 -my-1">
                         <button
                           onClick={() => handleToggleStatus(d)}
-                          className="px-2 py-1 text-xs rounded transition-colors hover:bg-[var(--bg-hover)]"
+                          className="px-2 py-1 text-xs rounded whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
                           style={{ color: 'var(--text-muted)' }}
                         >
                           {d.status === 'active' ? t('common.deactivate') : t('common.activate')}

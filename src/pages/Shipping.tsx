@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2, Truck, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, Trash2, Truck, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { api, ShippingZone, ShippingRate, ShippingSettings, ShippingQuote } from '../lib/api';
 import { useLocale } from '../lib/locale-context';
 import { countryList } from '../lib/geo';
@@ -16,7 +16,7 @@ const L = {
     currency: 'Rates currency', fx: 'Exchange rate for other currencies (rates currency per 1 unit)', fxHint: 'Needed only if the shop sells in another currency. EUR is preset to the CFA parity.',
     save: 'Save', saved: 'Saved', missingTitle: 'Products without a weight', missingHint: 'Their weight is replaced by the default above, so shipping is only approximate. Enter the real weights (grams).',
     sku: 'SKU', grams: 'g', zones: 'Zones', addZone: 'Add a zone', zoneName: 'Zone name', countries: 'Countries', addCountry: 'Add a country…', world: 'Rest of the world',
-    regions: 'Only these cities / regions (comma separated, empty = whole country)', active: 'Active', del: 'Delete', rates: 'Rates', addRate: 'Add a rate',
+    regions: 'Only these cities / regions (comma separated, empty = whole country)', active: 'Active', del: 'Delete', rate: 'rate', rates: 'Rates', addRate: 'Add a rate',
     nameFr: 'Name (French)', nameEn: 'Name (English)', kind: 'Type', flat: 'Flat price', weight: 'By weight', pickup: 'Pickup (free)',
     price: 'Price', bands: 'Weight bands', upTo: 'Up to (g)', addBand: 'Add a band', overKg: 'Above the last band: price per extra kg (empty = not available)',
     freeRate: 'Free from this goods total (empty = store setting)', minDays: 'Days min', maxDays: 'Days max', address: 'Pickup address',
@@ -31,7 +31,7 @@ const L = {
     currency: 'Devise des tarifs', fx: 'Taux pour les autres devises (devise des tarifs pour 1 unité)', fxHint: 'Utile seulement si la boutique vend dans une autre devise. L’EUR est préréglé à la parité du FCFA.',
     save: 'Enregistrer', saved: 'Enregistré', missingTitle: 'Produits sans poids', missingHint: 'Leur poids est remplacé par la valeur par défaut ci-dessus : la livraison n’est qu’approximative. Saisissez les vrais poids (grammes).',
     sku: 'SKU', grams: 'g', zones: 'Zones', addZone: 'Ajouter une zone', zoneName: 'Nom de la zone', countries: 'Pays', addCountry: 'Ajouter un pays…', world: 'Reste du monde',
-    regions: 'Seulement ces villes / régions (séparées par des virgules, vide = tout le pays)', active: 'Active', del: 'Supprimer', rates: 'Tarifs', addRate: 'Ajouter un tarif',
+    regions: 'Seulement ces villes / régions (séparées par des virgules, vide = tout le pays)', active: 'Active', del: 'Supprimer', rate: 'tarif', rates: 'Tarifs', addRate: 'Ajouter un tarif',
     nameFr: 'Nom (français)', nameEn: 'Nom (anglais)', kind: 'Type', flat: 'Prix fixe', weight: 'Selon le poids', pickup: 'Retrait (gratuit)',
     price: 'Prix', bands: 'Tranches de poids', upTo: 'Jusqu’à (g)', addBand: 'Ajouter une tranche', overKg: 'Au-delà de la dernière tranche : prix par kg supplémentaire (vide = indisponible)',
     freeRate: 'Offert à partir de ce total de produits (vide = réglage de la boutique)', minDays: 'Jours min', maxDays: 'Jours max', address: 'Adresse de retrait',
@@ -159,7 +159,7 @@ function SettingsCard({ t, value }: { t: Txt; value: ShippingSettings }) {
             <span key={k} className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--text)' }}>
               {k}
               <input type="number" step="any" className="w-28 px-2 py-1 text-sm rounded-lg" style={inputStyle} value={v} onChange={(e) => setFx({ ...fx, [k]: e.target.value })} />
-              <button type="button" aria-label="remove" onClick={() => { const n = { ...fx }; delete n[k]; setFx(n); }}><Trash2 size={13} /></button>
+              <button type="button" aria-label="remove" className="tap" onClick={() => { const n = { ...fx }; delete n[k]; setFx(n); }}><Trash2 size={13} /></button>
             </span>
           ))}
           <input placeholder="USD" maxLength={3} className="w-20 px-2 py-1 text-sm rounded-lg" style={inputStyle} value={newFx} onChange={(e) => setNewFx(e.target.value.toUpperCase())} />
@@ -229,9 +229,25 @@ function ZoneCard({ t, zone, cur, onChange }: { t: Txt; zone: ShippingZone; cur:
     onSuccess: onChange, onError: err,
   });
   const dirty = name !== zone.name || active !== zone.active || countries.join() !== zone.countries.join() || regions !== zone.regions.join(', ');
+  // On a phone the zones start folded: a shop with several zones and rates is otherwise a very long page.
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 768);
+  if (!open) {
+    return (
+      <div className={card} style={cardStyle}>
+        <button type="button" data-testid="zone-toggle" className="w-full flex items-center justify-between gap-3 text-left" onClick={() => setOpen(true)}>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium" style={{ color: 'var(--text)' }}>{zone.name}{!zone.active && ' ·  off'}</span>
+            <span className="block text-xs break-words" style={{ color: 'var(--text-secondary)' }}>{zone.countries.map(nameOf).join(', ')} · {zone.rates.length} {zone.rates.length === 1 ? t.rate : t.rates.toLowerCase()}</span>
+          </span>
+          <ChevronDown size={18} className="shrink-0" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={card} style={cardStyle}>
+      <button type="button" className="md:hidden mb-3 inline-flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }} onClick={() => setOpen(false)}><ChevronUp size={14} /> {zone.name}</button>
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[12rem]"><label className={lab} style={labStyle}>{t.zoneName}</label>
           <input className={inputCls} style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} /></div>
@@ -247,7 +263,7 @@ function ZoneCard({ t, zone, cur, onChange }: { t: Txt; zone: ShippingZone; cur:
           {countries.map((c) => (
             <span key={c} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>
               {nameOf(c)}
-              <button type="button" aria-label="remove" onClick={() => setCountries(countries.filter((x) => x !== c))}>×</button>
+              <button type="button" aria-label="remove" className="tap" onClick={() => setCountries(countries.filter((x) => x !== c))}>×</button>
             </span>
           ))}
         </div>
@@ -323,15 +339,18 @@ function RateEditor({ t, rate, cur, onChange }: { t: Txt; rate: ShippingRate; cu
           <label className={lab} style={labStyle}>{t.bands}</label>
           <div className="space-y-1.5">
             {r.bands.map((b, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs w-16" style={{ color: 'var(--text-secondary)' }}>{t.upTo}</span>
-                <input type="number" min={1} className="w-28 px-2 py-1.5 text-sm rounded-lg" style={inputStyle} value={b.up}
-                  onChange={(e) => set({ bands: r.bands.map((x, j) => (j === i ? { ...x, up: e.target.value } : x)) })} />
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>g →</span>
-                <input type="number" min={0} step="any" className="w-32 px-2 py-1.5 text-sm rounded-lg" style={inputStyle} value={b.price}
-                  onChange={(e) => set({ bands: r.bands.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) })} />
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{cur}</span>
-                <button type="button" aria-label="remove" onClick={() => set({ bands: r.bands.filter((_, j) => j !== i) })}><Trash2 size={13} /></button>
+              <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                <div>
+                  <span className="block text-[11px] mb-0.5" style={{ color: 'var(--text-secondary)' }}>{t.upTo}</span>
+                  <input type="number" min={1} className="w-full px-2 py-1.5 text-sm rounded-lg" style={inputStyle} value={b.up}
+                    onChange={(e) => set({ bands: r.bands.map((x, j) => (j === i ? { ...x, up: e.target.value } : x)) })} />
+                </div>
+                <div>
+                  <span className="block text-[11px] mb-0.5" style={{ color: 'var(--text-secondary)' }}>{t.price} ({cur})</span>
+                  <input type="number" min={0} step="any" className="w-full px-2 py-1.5 text-sm rounded-lg" style={inputStyle} value={b.price}
+                    onChange={(e) => set({ bands: r.bands.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)) })} />
+                </div>
+                <button type="button" aria-label="remove" className="tap" onClick={() => set({ bands: r.bands.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>
               </div>
             ))}
           </div>
