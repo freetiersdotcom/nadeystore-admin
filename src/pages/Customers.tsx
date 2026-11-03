@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { api, Customer } from '../lib/api';
 import { formatPrice } from '../lib/format';
+import { ExportButton } from '../components/DataTransfer';
 import { Modal } from '../components/Modal';
 import { cellLabel } from '../lib/table';
 import { useT } from '../lib/locale-context';
@@ -134,6 +135,7 @@ export function Customers() {
           {isFetching && !isLoading && (
             <Loader2 className="animate-spin" size={16} style={{ color: 'var(--text-muted)' }} />
           )}
+          <ExportButton kind="customers" />
           <button
             onClick={() => { setErasedView((v) => !v); setSelectedCustomer(null); }}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs min-h-[36px]"

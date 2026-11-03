@@ -601,9 +601,35 @@ export type Agenda = {
   unscheduled: Array<{ order_id: string; order_number: string; customer_email: string; customer_phone: string | null; created_at: string; needs_review: number; review_reason: string | null }>;
 };
 
+export type ImportReport = {
+  dry_run: boolean; ok: boolean; applied: boolean; currency: string;
+  summary: { rows: number; products_create: number; products_update: number; variants_create: number; variants_update: number; stock_changes: number };
+  errors: Array<{ line: number; message: string }>; error_count: number; warnings: Array<{ line: number; message: string }>;
+};
+
 export type BackupList = { configured: boolean; backups: Array<{ name: string; size: number; uploaded: string }> };
 
 export const api = {
+  // CSV import / export
+  async importProducts(csv: string, opts: { dryRun: boolean; currency: string }): Promise<ImportReport> {
+    const { apiUrl, apiKey, sessionToken } = getAuth();
+    const bearer = sessionToken || apiKey;
+    const res = await fetch(`${apiUrl}/v1/import/products?currency=${encodeURIComponent(opts.currency)}${opts.dryRun ? '&dry_run=1' : ''}`, {
+      method: 'POST', body: csv,
+      ...(AUTH_MODE === 'cookie' ? { credentials: 'include' as const } : {}),
+      headers: { 'Content-Type': 'text/csv', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+    });
+    const body = await res.json().catch(() => ({}));
+    // A file with mistakes comes back as 422 with the full report: show it instead of failing.
+    if (res.ok || (res.status === 422 && body.errors)) return body as ImportReport;
+    if (res.status === 401) window.dispatchEvent(new Event('auth:expired'));
+    throw new ApiError(body.error?.code || 'unknown', res.status, body.error?.message || res.statusText);
+  },
+  exportCsv(kind: 'products' | 'orders' | 'customers', params: Record<string, string> = {}) {
+    const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+    return downloadFile(`/v1/export/${kind}.csv${q ? `?${q}` : ''}`, `${kind}.csv`);
+  },
+
   // Backups
   async getBackups() { return request<BackupList>('/v1/backup'); },
   async runBackup() { return request<{ key: string; bytes: number; rows: number }>('/v1/backup/run', { method: 'POST' }); },

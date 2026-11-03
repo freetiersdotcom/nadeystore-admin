@@ -28,11 +28,12 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api, Product, Variant } from '../lib/api';
-import { cellLabel } from '../lib/table';
 import { formatPrice } from '../lib/format';
 import { assetDownloadUrl, assetDisplayName, assetFilename, formatFileSize } from '../lib/asset-helpers';
 import { StatusBadge } from '../components/StatusBadge';
+import { ImportProductsButton, ExportButton } from '../components/DataTransfer';
 import { Modal } from '../components/Modal';
+import { cellLabel } from '../lib/table';
 import { useT } from '../lib/locale-context';
 import { DepositFields } from './DepositFields';
 import clsx from 'clsx';
@@ -444,6 +445,8 @@ export function Products() {
           >
             <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           </button>
+          <ImportProductsButton />
+          <ExportButton kind="products" />
           <button
             onClick={() => setCreateModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded font-semibold transition-colors"

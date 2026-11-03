@@ -25,6 +25,7 @@ import {
 import { api, Order, RefundMethod } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
+import { OrdersExport } from '../components/DataTransfer';
 import { Modal } from '../components/Modal';
 import { PaymentPanel } from './PaymentPanel';
 import { ManualOrderModal } from './ManualOrderModal';
@@ -293,6 +294,7 @@ export function Orders() {
             <Plus size={14} />
             {t('orders.new')}
           </button>
+          <OrdersExport />
           <button
             onClick={() => setPlanSettingsOpen(true)}
             className="text-sm hover:underline"
