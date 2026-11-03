@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAuth, setAuthWithUrl, setAuth, clearAuth, getTheme, setTheme, getAgencyMode } from './lib/store';
 import { api, ApiError, type Me } from './lib/api';
-import { Layout, Page, PAGE_PERMISSION } from './components/Layout';
+import { Layout, Page, AnyPage, PAGE_PERMISSION } from './components/Layout';
+import { ModulePage } from './lib/modules';
 import { Login } from './pages/Login';
 import { ConfirmSignIn } from './pages/ConfirmSignIn';
 import { Team } from './pages/Team';
@@ -54,7 +55,7 @@ export default function App() {
   const [me, setMe] = useState<Me | null>(null);
   const [isLoading, setIsLoading] = useState(!initialConfirmToken);
   const [confirmToken, setConfirmToken] = useState<string | null>(initialConfirmToken);
-  const [currentPage, setCurrentPage] = useState<Page>('orders');
+  const [currentPage, setCurrentPage] = useState<AnyPage>('orders');
   const [theme, setThemeState] = useState<'light' | 'dark'>(getTheme());
 
   const can = useCallback(
@@ -113,12 +114,12 @@ export default function App() {
         setConfirmToken(token);
         return;
       }
-      const hash = window.location.hash.slice(1) as Page;
-      if (!VALID_PAGES.includes(hash)) return;
+      const hash = window.location.hash.slice(1) as AnyPage;
+      if (!VALID_PAGES.includes(hash as Page) && !/^m\/[a-z][a-z0-9-]*$/.test(hash)) return;
       // Guard: agency-only pages, and pages the person's role cannot open.
       const agencyOnlyPages: Page[] = ['webhooks', 'setup/payments', 'setup/email'];
-      if (agencyOnlyPages.includes(hash) && !isAgency) return;
-      const needed = PAGE_PERMISSION[hash];
+      if (agencyOnlyPages.includes(hash as Page) && !isAgency) return;
+      const needed = PAGE_PERMISSION[hash as Page];
       if (me && needed && !can(needed)) return;
       setCurrentPage(hash);
     };
@@ -159,7 +160,7 @@ export default function App() {
     setThemeState(newTheme);
   };
 
-  const handleNavigate = (page: Page) => {
+  const handleNavigate = (page: AnyPage) => {
     window.location.hash = page;
     setCurrentPage(page);
   };
@@ -205,6 +206,7 @@ export default function App() {
       {currentPage === 'setup/email' && isAgency && <SetupEmail />}
       {currentPage === 'messages' && <Messages />}
       {currentPage === 'team' && <Team me={me} onSignedOut={handleLogout} />}
+      {currentPage.startsWith('m/') && <ModulePage id={currentPage.slice(2)} />}
     </Layout>
   );
 }

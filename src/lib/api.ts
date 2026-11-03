@@ -607,9 +607,33 @@ export type ImportReport = {
   errors: Array<{ line: number; message: string }>; error_count: number; warnings: Array<{ line: number; message: string }>;
 };
 
+export type ModuleInfo = { id: string; name: { fr: string; en: string }; description: { fr: string; en: string }; version: number; enabled: boolean; access: 'read' | 'write' | null };
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'converted' | 'expired';
+export type QuoteItem = { sku: string; title: string; qty: number; unit_price_cents: number };
+export type Quote = {
+  id: string; number: string; status: QuoteStatus; stored_status: string; customer_name: string | null; customer_email: string | null; customer_phone: string | null;
+  currency: string; locale: 'fr' | 'en'; items: QuoteItem[]; total_cents: number; note: string | null; valid_until: string; order_id: string | null;
+  public_url: string; created_at: string; sent_at: string | null; responded_at: string | null;
+};
+export type QuoteInput = {
+  customer_name?: string; customer_email?: string; customer_phone?: string; note?: string; locale?: 'fr' | 'en';
+  items: Array<{ sku: string; qty: number; unit_price_cents?: number }>; valid_days?: number;
+};
+
 export type BackupList = { configured: boolean; backups: Array<{ name: string; size: number; uploaded: string }> };
 
 export const api = {
+  // Optional modules
+  async getModules() { return request<{ items: ModuleInfo[] }>('/v1/modules'); },
+  async setModule(id: string, enabled: boolean) { return request<{ id: string; enabled: boolean }>(`/v1/modules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) }); },
+  // Quotations module
+  async getQuotes() { return request<{ items: Quote[] }>('/v1/m/quotes'); },
+  async createQuote(b: QuoteInput & { currency: string }) { return request<Quote>('/v1/m/quotes', { method: 'POST', body: JSON.stringify(b) }); },
+  async updateQuote(id: string, b: Partial<QuoteInput>) { return request<Quote>(`/v1/m/quotes/${id}`, { method: 'PATCH', body: JSON.stringify(b) }); },
+  async sendQuote(id: string) { return request<Quote & { emailed: boolean; email_error: string | null }>(`/v1/m/quotes/${id}/send`, { method: 'POST' }); },
+  async quoteConverted(id: string, orderId: string) { return request<Quote>(`/v1/m/quotes/${id}/converted`, { method: 'POST', body: JSON.stringify({ order_id: orderId }) }); },
+  async deleteQuote(id: string) { return request<{ deleted: true }>(`/v1/m/quotes/${id}`, { method: 'DELETE' }); },
+
   // CSV import / export
   async importProducts(csv: string, opts: { dryRun: boolean; currency: string }): Promise<ImportReport> {
     const { apiUrl, apiKey, sessionToken } = getAuth();

@@ -25,6 +25,7 @@ import { CalendarClock } from 'lucide-react';
 import { useLocale, useT } from '../lib/locale-context';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { MODULE_UI } from '../lib/modules';
 
 export type Page =
   | 'orders'
@@ -40,6 +41,9 @@ export type Page =
   | 'setup/email'
   | 'messages'
   | 'team';
+
+/** A page of an optional module is `m/<module id>`. */
+export type AnyPage = Page | `m/${string}`;
 
 /** What a person needs to open each page. `team` is open to any signed-in person (it holds "my account"). */
 export const PAGE_PERMISSION: Record<Page, string | null> = {
@@ -85,8 +89,8 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
 
 type LayoutProps = {
   children: ReactNode;
-  currentPage: Page;
-  onNavigate: (page: Page) => void;
+  currentPage: AnyPage;
+  onNavigate: (page: AnyPage) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onThemeToggle: () => void;
@@ -144,7 +148,13 @@ export function Layout({
     (item) => item.id === 'setup/payments' || item.id === 'setup/email'
   );
 
-  const go = (page: Page) => { setDrawer(false); onNavigate(page); };
+  // Pages of the modules this shop has switched on (and the person may open).
+  const { data: modules } = useQuery({ queryKey: ['modules'], queryFn: () => api.getModules(), staleTime: 60_000 });
+  const moduleItems = (modules?.items ?? [])
+    .filter((m) => m.enabled && m.access && MODULE_UI[m.id])
+    .map((m) => ({ id: `m/${m.id}` as AnyPage, label: m.name[locale === 'en' ? 'en' : 'fr'], icon: MODULE_UI[m.id].icon }));
+
+  const go = (page: AnyPage) => { setDrawer(false); onNavigate(page); };
 
   // The same menu is used by the desktop sidebar (collapsible) and the phone drawer (always full).
   const navBody = (collapsed: boolean) => (
@@ -180,6 +190,10 @@ export function Layout({
               onClick={() => go(id)}
               badge={id === 'messages' ? unread?.new : undefined}
             />
+          ))}
+
+          {moduleItems.map(({ id, label, icon: Icon }) => (
+            <NavButton key={id} id={id as Page} label={label} Icon={Icon} active={currentPage === id} collapsed={collapsed} onClick={() => go(id)} />
           ))}
 
           {/* Setup section — agency only */}
@@ -271,7 +285,8 @@ export function Layout({
   const allowed = (id: Page) => visibleItems.some((i) => i.id === id);
   const labelOf = (id: Page) => (id === 'team' && !can('users.manage') ? t('team.account') : t(NAV_ITEM_DEFS.find((d) => d.id === id)!.labelKey));
   const tabs: Page[] = (['orders', 'customers', 'products', 'inventory'] as Page[]).filter(allowed).slice(0, 4);
-  const currentLabel = visibleItems.some((i) => i.id === currentPage) ? labelOf(currentPage) : '';
+  const currentLabel = moduleItems.find((i) => i.id === currentPage)?.label
+    ?? (visibleItems.some((i) => i.id === currentPage) ? labelOf(currentPage as Page) : '');
 
   return (
     <div className="min-h-screen flex">
