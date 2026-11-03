@@ -42,6 +42,25 @@ async function send<T>(path: string, options: RequestInit, announceExpiry: boole
 }
 
 const request = <T>(path: string, options: RequestInit = {}) => send<T>(path, options, true);
+
+/** Fetch a file with the current sign-in and hand it to the browser as a download. */
+async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const { apiUrl, apiKey, sessionToken } = getAuth();
+  const bearer = sessionToken || apiKey;
+  const res = await fetch(`${apiUrl}${path}`, {
+    ...(AUTH_MODE === 'cookie' ? { credentials: 'include' as const } : {}),
+    headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new ApiError(err.error?.code || 'unknown', res.status, err.error?.message || res.statusText);
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 /** For the sign-in calls themselves: a 401 here is a wrong code or password, not an expired session. */
 const authRequest = <T>(path: string, options: RequestInit = {}) => send<T>(path, options, false);
 
@@ -582,7 +601,14 @@ export type Agenda = {
   unscheduled: Array<{ order_id: string; order_number: string; customer_email: string; customer_phone: string | null; created_at: string; needs_review: number; review_reason: string | null }>;
 };
 
+export type BackupList = { configured: boolean; backups: Array<{ name: string; size: number; uploaded: string }> };
+
 export const api = {
+  // Backups
+  async getBackups() { return request<BackupList>('/v1/backup'); },
+  async runBackup() { return request<{ key: string; bytes: number; rows: number }>('/v1/backup/run', { method: 'POST' }); },
+  downloadBackup(name?: string) { return downloadFile(name ? `/v1/backup/files/${encodeURIComponent(name)}` : '/v1/backup/download', 'backup.ndjson.gz'); },
+
   // Orders
   async getOrders(params?: { limit?: number; cursor?: string; status?: string; email?: string; needsReview?: boolean; serviceStatus?: string; balanceDue?: boolean }) {
     const searchParams = new URLSearchParams();

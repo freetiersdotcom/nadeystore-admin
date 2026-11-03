@@ -6,6 +6,7 @@ import { useLocale, useT } from '../lib/locale-context';
 import { useIntlDate } from './teamDate';
 import { ApiKeys, SetupChecklist } from './ApiAccess';
 import { PasskeyCard } from './Passkeys';
+import { BackupCard } from './Backups';
 
 type Props = { me: Me; onSignedOut: () => void };
 
@@ -35,6 +36,7 @@ export function Team({ me, onSignedOut }: Props) {
       {canManage && <SignInSettings />}
       {canManage && <ApiKeys me={me} />}
       {canManage && <SetupChecklist />}
+      {me.permissions.includes('settings.manage') && <BackupCard />}
       {me.user && <MyAccount onSignedOut={onSignedOut} />}
       {canAudit && <Audit />}
     </div>
