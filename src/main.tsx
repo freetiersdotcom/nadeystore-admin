@@ -14,6 +14,11 @@ const queryClient = new QueryClient({
   },
 });
 
+// Installable app: the service worker keeps the shell available offline and shows order notifications.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => { /* the admin works without it */ }); });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

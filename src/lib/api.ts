@@ -645,6 +645,12 @@ export const api = {
   async quoteConverted(id: string, orderId: string) { return request<Quote>(`/v1/m/quotes/${id}/converted`, { method: 'POST', body: JSON.stringify({ order_id: orderId }) }); },
   async deleteQuote(id: string) { return request<{ deleted: true }>(`/v1/m/quotes/${id}`, { method: 'DELETE' }); },
 
+  // Push notifications (installed app)
+  async getPushKey() { return request<{ public_key: string }>('/v1/push/key'); },
+  async pushSubscribe(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, locale: 'fr' | 'en') { return request<{ subscribed: true }>('/v1/push/subscribe', { method: 'POST', body: JSON.stringify({ ...sub, locale }) }); },
+  async pushUnsubscribe(endpoint: string) { return request<{ subscribed: false }>('/v1/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) }); },
+  async pushTest() { return request<{ devices: number; sent: number }>('/v1/push/test', { method: 'POST' }); },
+
   // Affiliates module
   async getAffiliates() { return request<{ hold_days: number; items: AffiliateListItem[] }>('/v1/m/affiliates'); },
   async getAffiliate(id: string) { return request<AffiliateDetail>(`/v1/m/affiliates/${id}`); },

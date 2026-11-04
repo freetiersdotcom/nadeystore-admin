@@ -8,6 +8,7 @@ import { ApiKeys, SetupChecklist } from './ApiAccess';
 import { PasskeyCard } from './Passkeys';
 import { BackupCard } from './Backups';
 import { ModulesCard } from './modules/ModulesCard';
+import { DeviceCard } from './DeviceCard';
 
 type Props = { me: Me; onSignedOut: () => void };
 
@@ -39,6 +40,7 @@ export function Team({ me, onSignedOut }: Props) {
       {canManage && <SetupChecklist />}
       {me.permissions.includes('settings.manage') && <ModulesCard />}
       {me.permissions.includes('settings.manage') && <BackupCard />}
+      {me.user && <DeviceCard />}
       {me.user && <MyAccount onSignedOut={onSignedOut} />}
       {canAudit && <Audit />}
     </div>

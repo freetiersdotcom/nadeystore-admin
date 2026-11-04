@@ -28,9 +28,21 @@ export type AuthState = {
   hasCredentials: boolean;
 };
 
+/** True when the admin runs as an installed app (home-screen icon), not in a browser tab. */
+export function isStandalone(): boolean {
+  try {
+    return window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+  } catch {
+    return false;
+  }
+}
+
+// A browser tab keeps the session for that tab only (sessionStorage). An installed app is closed and reopened
+// like any phone app, so it keeps the session on this device (localStorage) until it expires on the server or the
+// person signs out; otherwise they would sign in again every time.
 function readSession(): string {
   try {
-    return sessionStorage.getItem(SESSION_KEY) || '';
+    return sessionStorage.getItem(SESSION_KEY) || (isStandalone() ? localStorage.getItem(SESSION_KEY) || '' : '');
   } catch {
     return '';
   }
@@ -56,7 +68,8 @@ export function setApiUrl(apiUrl: string) {
 
 export function setSessionToken(token: string) {
   try {
-    sessionStorage.setItem(SESSION_KEY, token);
+    if (isStandalone()) localStorage.setItem(SESSION_KEY, token);
+    else sessionStorage.setItem(SESSION_KEY, token);
   } catch {
     /* storage unavailable: the session lasts until reload */
   }
@@ -73,6 +86,7 @@ export function setAuth(apiKey: string) {
   localStorage.setItem(API_KEY_KEY, apiKey);
   try {
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
   } catch {
     /* ignore */
   }
@@ -83,6 +97,7 @@ export function setAuthWithUrl(apiUrl: string, apiKey: string) {
   localStorage.setItem(API_KEY_KEY, apiKey);
   try {
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
   } catch {
     /* ignore */
   }
@@ -93,6 +108,7 @@ export function clearAuth() {
   localStorage.removeItem(API_KEY_KEY);
   try {
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
   } catch {
     /* ignore */
   }
