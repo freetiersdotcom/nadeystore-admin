@@ -620,6 +620,17 @@ export type QuoteInput = {
   items: Array<{ sku: string; qty: number; unit_price_cents?: number }>; valid_days?: number;
 };
 
+export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
+export type Affiliate = {
+  id: string; code: string; name: string; email: string | null; phone: string | null; rate_percent: number; status: 'active' | 'paused';
+  discount_code: string | null; note: string | null; created_at: string; link: string; portal_url: string;
+};
+export type AffiliateListItem = Affiliate & { totals: AffiliateTotals[] };
+export type AffiliateOrder = { order_id: string; number: string; created_at: string; currency: string; via: string; rate_bp: number; base_cents: number; commission_cents: number; state: 'awaiting_payment' | 'pending' | 'available' | 'canceled' };
+export type AffiliatePayout = { id: string; amount_cents: number; currency: string; method: string; reference: string | null; note: string | null; created_at: string };
+export type AffiliateDetail = Affiliate & { hold_days: number; totals: AffiliateTotals[]; orders: AffiliateOrder[]; payouts: AffiliatePayout[] };
+export type AffiliateInput = { name?: string; email?: string; phone?: string; rate_percent?: number; code?: string; discount_code?: string; note?: string; status?: 'active' | 'paused' };
+
 export type BackupList = { configured: boolean; backups: Array<{ name: string; size: number; uploaded: string }> };
 
 export const api = {
@@ -633,6 +644,16 @@ export const api = {
   async sendQuote(id: string) { return request<Quote & { emailed: boolean; email_error: string | null }>(`/v1/m/quotes/${id}/send`, { method: 'POST' }); },
   async quoteConverted(id: string, orderId: string) { return request<Quote>(`/v1/m/quotes/${id}/converted`, { method: 'POST', body: JSON.stringify({ order_id: orderId }) }); },
   async deleteQuote(id: string) { return request<{ deleted: true }>(`/v1/m/quotes/${id}`, { method: 'DELETE' }); },
+
+  // Affiliates module
+  async getAffiliates() { return request<{ hold_days: number; items: AffiliateListItem[] }>('/v1/m/affiliates'); },
+  async getAffiliate(id: string) { return request<AffiliateDetail>(`/v1/m/affiliates/${id}`); },
+  async createAffiliate(b: AffiliateInput) { return request<Affiliate>('/v1/m/affiliates', { method: 'POST', body: JSON.stringify(b) }); },
+  async updateAffiliate(id: string, b: AffiliateInput) { return request<Affiliate>(`/v1/m/affiliates/${id}`, { method: 'PATCH', body: JSON.stringify(b) }); },
+  async deleteAffiliate(id: string) { return request<{ deleted: true }>(`/v1/m/affiliates/${id}`, { method: 'DELETE' }); },
+  async setAffiliateHold(hold_days: number) { return request<{ hold_days: number }>('/v1/m/affiliates/settings', { method: 'PUT', body: JSON.stringify({ hold_days }) }); },
+  async payAffiliate(id: string, b: { amount_cents: number; currency: string; method: string; reference?: string; note?: string }) { return request<{ id: string }>(`/v1/m/affiliates/${id}/payouts`, { method: 'POST', body: JSON.stringify(b) }); },
+  async removeAffiliatePayout(id: string, payoutId: string) { return request<{ deleted: true }>(`/v1/m/affiliates/${id}/payouts/${payoutId}`, { method: 'DELETE' }); },
 
   // CSV import / export
   async importProducts(csv: string, opts: { dryRun: boolean; currency: string }): Promise<ImportReport> {

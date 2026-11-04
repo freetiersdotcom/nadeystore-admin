@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react';
-import { FileText, type LucideIcon } from 'lucide-react';
+import { FileText, Share2, type LucideIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 import { useLocale } from './locale-context';
 import { Quotes } from '../pages/modules/Quotes';
+import { Affiliates } from '../pages/modules/Affiliates';
 
 /**
  * Admin side of the optional modules. The API decides which modules exist and are on
@@ -12,6 +13,7 @@ import { Quotes } from '../pages/modules/Quotes';
  */
 export const MODULE_UI: Record<string, { icon: LucideIcon; Page: ComponentType<{ canWrite: boolean }> }> = {
   quotes: { icon: FileText, Page: Quotes },
+  affiliates: { icon: Share2, Page: Affiliates },
 };
 
 export function ModulePage({ id }: { id: string }) {
