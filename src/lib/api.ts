@@ -5,7 +5,8 @@ export class ApiError extends Error {
     public code: string,
     public status: number,
     message: string,
-    public retryAfter?: number
+    public retryAfter?: number,
+    public body?: any
   ) {
     super(message);
   }
@@ -34,7 +35,8 @@ async function send<T>(path: string, options: RequestInit, announceExpiry: boole
       err.error?.code || 'unknown',
       res.status,
       err.error?.message || res.statusText,
-      Number(res.headers.get('Retry-After')) || undefined
+      Number(res.headers.get('Retry-After')) || undefined,
+      err
     );
   }
 
@@ -620,6 +622,9 @@ export type QuoteInput = {
   items: Array<{ sku: string; qty: number; unit_price_cents?: number }>; valid_days?: number;
 };
 
+export type VoucherPlan = { sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
+export type VoucherLoadReport = { lines: number; to_add: number; added: number; ok: boolean; problems: { line: number; text: string; reason: string }[] };
+export type VoucherDelivery = { order_id: string; number: string; created_at: string; order_status: string; customer_email: string; customer_phone: string | null; emailed: boolean; has_link?: boolean; link?: string | null; items: { sku: string; title: string; qty: number; waiting: number; codes: { seq: number; username: string; password: string }[] }[] };
 export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
 export type Affiliate = {
   id: string; code: string; name: string; email: string | null; phone: string | null; rate_percent: number; status: 'active' | 'paused';
@@ -651,6 +656,18 @@ export const api = {
   async pushUnsubscribe(endpoint: string) { return request<{ subscribed: false }>('/v1/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) }); },
   async pushTest() { return request<{ devices: number; sent: number }>('/v1/push/test', { method: 'POST' }); },
 
+  // Vouchers module
+  async getVoucherPlans() { return request<{ items: VoucherPlan[] }>('/v1/m/vouchers'); },
+  async saveVoucherPlan(sku: string, b: { instructions_fr?: string; instructions_en?: string }) { return request<{ sku: string }>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async deleteVoucherPlan(sku: string) { return request<{ deleted: true }>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}`, { method: 'DELETE' }); },
+  /** Load codes. A refused list (422) comes back as a report, not an exception, so the screen can show the lines. */
+  async loadVoucherCodes(sku: string, b: { text: string; batch?: string; dry_run?: boolean }): Promise<VoucherLoadReport> {
+    try { return await request<VoucherLoadReport>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}/codes`, { method: 'POST', body: JSON.stringify(b) }); }
+    catch (e: any) { if (e?.status === 422 && e?.body?.problems) return e.body as VoucherLoadReport; throw e; }
+  },
+  async getVoucherOrders() { return request<{ items: VoucherDelivery[] }>('/v1/m/vouchers/orders'); },
+  async getVoucherOrder(id: string) { return request<VoucherDelivery>(`/v1/m/vouchers/orders/${id}`); },
+  async resendVoucher(id: string) { return request<{ emailed: boolean }>(`/v1/m/vouchers/orders/${id}/resend`, { method: 'POST', body: '{}' }); },
   // Affiliates module
   async getAffiliates() { return request<{ hold_days: number; items: AffiliateListItem[] }>('/v1/m/affiliates'); },
   async getAffiliate(id: string) { return request<AffiliateDetail>(`/v1/m/affiliates/${id}`); },
