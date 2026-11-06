@@ -9,6 +9,7 @@ import { PasskeyCard } from './Passkeys';
 import { BackupCard } from './Backups';
 import { ModulesCard } from './modules/ModulesCard';
 import { DeviceCard } from './DeviceCard';
+import { LaunchCard } from './LaunchCard';
 
 type Props = { me: Me; onSignedOut: () => void };
 
@@ -38,6 +39,7 @@ export function Team({ me, onSignedOut }: Props) {
       {canManage && <SignInSettings />}
       {canManage && <ApiKeys me={me} />}
       {canManage && <SetupChecklist />}
+      {canManage && <LaunchCard />}
       {me.permissions.includes('settings.manage') && <ModulesCard />}
       {me.permissions.includes('settings.manage') && <BackupCard />}
       {me.user && <DeviceCard />}

@@ -146,6 +146,9 @@ export type ApiKeyItem = {
   status: 'active' | 'expiring' | 'expired' | 'revoked';
 };
 
+export type LaunchCheck = { id: string; ok: boolean; must: boolean; count?: number; sample?: string[] };
+export type LaunchManual = { id: string; must: boolean; done: boolean; at: string | null; by: string | null };
+export type LaunchStatus = { checks: LaunchCheck[]; manual: LaunchManual[]; ready: boolean };
 export type SetupStatus = {
   owner_exists: boolean;
   email: { configured: boolean; provider: string | null };
@@ -1367,6 +1370,8 @@ export const api = {
   getSetupStatus() {
     return request<SetupStatus>('/v1/auth/setup-status');
   },
+  getLaunch() { return request<LaunchStatus>('/v1/launch'); },
+  tickLaunch(id: string, done: boolean) { return request<{ id: string; done: boolean }>(`/v1/launch/manual/${id}`, { method: 'PUT', body: JSON.stringify({ done }) }); },
   sealSecrets() {
     return request<{ sealed: string[] }>('/v1/auth/secrets/seal', { method: 'POST' });
   },
