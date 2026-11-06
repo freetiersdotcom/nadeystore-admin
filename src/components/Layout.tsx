@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { Truck } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { CalendarClock } from 'lucide-react';
 import { useLocale, useT } from '../lib/locale-context';
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +41,7 @@ export type Page =
   | 'setup/payments'
   | 'setup/email'
   | 'messages'
+  | 'profit'
   | 'team';
 
 /** A page of an optional module is `m/<module id>`. */
@@ -59,6 +61,7 @@ export const PAGE_PERMISSION: Record<Page, string | null> = {
   'setup/payments': 'settings.manage',
   'setup/email': 'settings.manage',
   messages: 'messages.read',
+  profit: 'costs.manage',
   team: null,
 };
 
@@ -81,6 +84,7 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
   { id: 'appointments',    labelKey: 'nav.appointments', icon: CalendarClock },
   { id: 'shipping',        labelKey: 'nav.shipping',  icon: Truck },
   { id: 'messages',        labelKey: 'nav.messages',  icon: MessageSquare },
+  { id: 'profit',          labelKey: 'nav.profit',    icon: TrendingUp },
   { id: 'team',            labelKey: 'nav.team',      icon: UserCog },
   { id: 'webhooks',        labelKey: 'nav.webhooks',  icon: Webhook,   agencyOnly: true },
   { id: 'setup/payments',  labelKey: 'nav.payments',  icon: Settings,  agencyOnly: true },

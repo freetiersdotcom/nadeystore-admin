@@ -562,6 +562,7 @@ export const translations = {
 
     // ── Team, sign-in ─────────────────────────────────────
     'nav.team': 'Team',
+    'nav.profit': 'Profit',
     'nav.signedInAs': 'Signed in as',
     'login.emailLabel': 'Email address',
     'login.emailPlaceholder': 'you@example.com',
@@ -1329,6 +1330,7 @@ export const translations = {
 
     // ── Team, sign-in ─────────────────────────────────────
     'nav.team': 'Équipe',
+    'nav.profit': 'Bénéfice',
     'nav.signedInAs': 'Connecté en tant que',
     'login.emailLabel': 'Adresse e-mail',
     'login.emailPlaceholder': 'vous@exemple.com',

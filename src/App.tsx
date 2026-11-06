@@ -6,6 +6,7 @@ import { ModulePage } from './lib/modules';
 import { Login } from './pages/Login';
 import { ConfirmSignIn } from './pages/ConfirmSignIn';
 import { Team } from './pages/Team';
+import { Profit } from './pages/Profit';
 import { Orders } from './pages/Orders';
 import { Customers } from './pages/Customers';
 import { Inventory } from './pages/Inventory';
@@ -32,6 +33,7 @@ const VALID_PAGES: Page[] = [
   'setup/payments',
   'setup/email',
   'messages',
+  'profit',
   'team',
 ];
 
@@ -205,6 +207,7 @@ export default function App() {
       {currentPage === 'setup/payments' && isAgency && <SetupPayments />}
       {currentPage === 'setup/email' && isAgency && <SetupEmail />}
       {currentPage === 'messages' && <Messages />}
+      {currentPage === 'profit' && <Profit />}
       {currentPage === 'team' && <Team me={me} onSignedOut={handleLogout} />}
       {currentPage.startsWith('m/') && <ModulePage id={currentPage.slice(2)} />}
     </Layout>
