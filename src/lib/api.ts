@@ -631,6 +631,10 @@ export type VoucherDelivery = { order_id: string; number: string; created_at: st
 export type RecoverySettings = { origin: string | null; step1_hours: number; step2_hours: number; discount_code: string | null; cooldown_days: number; max_age_days: number };
 export type RecoveryItem = { cart_id: string; email: string; total_cents: number; currency: string; cart_at: string; step: number; last_sent_at: string | null; resumed: boolean; state: 'waiting' | 'reminded' | 'recovered' | 'optout' | 'closed'; closed: string | null; items: { sku: string; title: string; qty: number; unit_price_cents: number }[] };
 export type RecoveryOverview = { settings: RecoverySettings; has_email: boolean; stats: { waiting: number; reminded: number; recovered: number; optout: number; recovered_revenue: { currency: string; cents: number; n: number }[] }; items: RecoveryItem[] };
+export type LowStockSettings = { default_threshold: number; emails: string; push: number };
+export type LowStockSupplier = { id: string; name: string; phone: string | null; email: string | null; note: string | null };
+export type LowStockItem = { sku: string; product_title: string; variant_title: string; available: number; on_hand: number; reserved: number; threshold: number; muted: number; supplier_id: string | null; reorder_qty: number | null; level: 'ok' | 'low' | 'out'; alerted: boolean };
+export type LowStockOverview = { settings: LowStockSettings; suppliers: LowStockSupplier[]; items: LowStockItem[] };
 export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
 export type Affiliate = {
   id: string; code: string; name: string; email: string | null; phone: string | null; rate_percent: number; status: 'active' | 'paused';
@@ -662,6 +666,13 @@ export const api = {
   async pushUnsubscribe(endpoint: string) { return request<{ subscribed: false }>('/v1/push/subscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) }); },
   async pushTest() { return request<{ devices: number; sent: number }>('/v1/push/test', { method: 'POST' }); },
 
+  // Low-stock module
+  async getLowStock() { return request<LowStockOverview>('/v1/m/lowstock'); },
+  async saveLowStockSettings(b: { default_threshold: number; emails: string; push: boolean }) { return request<LowStockSettings>('/v1/m/lowstock/settings', { method: 'PUT', body: JSON.stringify(b) }); },
+  async saveLowStockItem(sku: string, b: { threshold?: number | null; muted?: boolean; supplier_id?: string | null; reorder_qty?: number | null }) { return request<unknown>(`/v1/m/lowstock/items/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async lowStockMessage(sku: string, lang: 'fr' | 'en') { return request<{ message: string; supplier: LowStockSupplier | null }>(`/v1/m/lowstock/items/${encodeURIComponent(sku)}/message?lang=${lang}`); },
+  async addLowStockSupplier(b: { name: string; phone?: string | null; email?: string | null; note?: string | null }) { return request<LowStockSupplier>('/v1/m/lowstock/suppliers', { method: 'POST', body: JSON.stringify(b) }); },
+  async deleteLowStockSupplier(id: string) { return request<{ deleted: true }>(`/v1/m/lowstock/suppliers/${id}`, { method: 'DELETE' }); },
   // Abandoned-cart module
   async getRecovery() { return request<RecoveryOverview>('/v1/m/recovery'); },
   async saveRecoverySettings(b: Omit<RecoverySettings, 'origin'>) { return request<RecoverySettings>('/v1/m/recovery/settings', { method: 'PUT', body: JSON.stringify(b) }); },
