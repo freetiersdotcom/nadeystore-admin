@@ -27,6 +27,7 @@ import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 import { OrdersExport } from '../components/DataTransfer';
 import { Modal } from '../components/Modal';
+import { OrderProfit } from './OrderProfit';
 import { PaymentPanel } from './PaymentPanel';
 import { ManualOrderModal } from './ManualOrderModal';
 import { PlanPanel } from './PlanPanel';
@@ -61,7 +62,7 @@ const REFUND_METHODS: RefundMethod[] = [
 // Currencies whose smallest unit is the whole currency (amounts are stored as-is).
 const ZERO_DECIMAL = new Set(['XOF', 'GNF', 'JPY', 'KRW', 'VND']);
 
-export function Orders() {
+export function Orders({ canCosts = false }: { canCosts?: boolean } = {}) {
   const queryClient = useQueryClient();
   const t = useT();
 
@@ -477,6 +478,8 @@ export function Orders() {
               status={selectedOrder.status}
               label={t(`orders.status.${selectedOrder.status}` as Parameters<typeof t>[0])}
             />
+
+            {canCosts && <OrderProfit key={`profit-${selectedOrder.id}`} orderId={selectedOrder.id} />}
 
             {/* Payments: balance, history, record a payment */}
             <PaymentPanel
