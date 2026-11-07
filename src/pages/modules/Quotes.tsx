@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type Quote, type QuoteStatus } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
 import { Modal } from '../../components/Modal';
+import { printHtml } from '../../lib/receipt';
 import { useLocale } from '../../lib/locale-context';
 
 // Self-contained strings: a module does not touch the core translation file.
@@ -12,7 +13,7 @@ const S = {
     new: 'New quote', empty: 'No quotes yet.', number: 'Quote', customer: 'Customer', total: 'Total', status: 'Status', valid: 'Valid until',
     name: 'Customer name', email: 'Email', phone: 'Phone / WhatsApp', locale: 'Language', items: 'Items', item: 'Choose an item', qty: 'Qty', price: 'Unit price (optional)',
     addItem: 'Add an item', days: 'Valid for (days)', note: 'Note for the customer', save: 'Save', cancel: 'Cancel', edit: 'Edit', del: 'Delete', send: 'Send / share',
-    link: 'Customer link', copy: 'Copy link', copied: 'Copied', whatsapp: 'WhatsApp', makeOrder: 'Create order', ordered: 'Order created', invalid: 'Add at least one item with a quantity.',
+    print: 'Print / PDF', link: 'Customer link', copy: 'Copy link', copied: 'Copied', whatsapp: 'WhatsApp', makeOrder: 'Create order', ordered: 'Order created', invalid: 'Add at least one item with a quantity.',
     sentEmail: 'Link emailed to the customer.', sentNoEmail: 'Marked as sent. Share the link below.', confirmDel: 'Delete this quote?', mail: 'Email notice failed: ',
     st: { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined', converted: 'Order created', expired: 'Expired' },
     msg: (n: string, u: string) => `Hello, here is your quote ${n}: ${u}`,
@@ -22,7 +23,7 @@ const S = {
     new: 'Nouveau devis', empty: 'Aucun devis pour le moment.', number: 'Devis', customer: 'Client', total: 'Total', status: 'Statut', valid: "Valable jusqu'au",
     name: 'Nom du client', email: 'E-mail', phone: 'Téléphone / WhatsApp', locale: 'Langue', items: 'Articles', item: 'Choisir un article', qty: 'Qté', price: 'Prix unitaire (facultatif)',
     addItem: 'Ajouter un article', days: 'Validité (jours)', note: 'Note pour le client', save: 'Enregistrer', cancel: 'Annuler', edit: 'Modifier', del: 'Supprimer', send: 'Envoyer / partager',
-    link: 'Lien client', copy: 'Copier le lien', copied: 'Copié', whatsapp: 'WhatsApp', makeOrder: 'Créer la commande', ordered: 'Commande créée', invalid: 'Ajoutez au moins un article avec une quantité.',
+    print: 'Imprimer / PDF', link: 'Lien client', copy: 'Copier le lien', copied: 'Copié', whatsapp: 'WhatsApp', makeOrder: 'Créer la commande', ordered: 'Commande créée', invalid: 'Ajoutez au moins un article avec une quantité.',
     sentEmail: 'Lien envoyé par e-mail au client.', sentNoEmail: 'Marqué comme envoyé. Partagez le lien ci-dessous.', confirmDel: 'Supprimer ce devis ?', mail: "Échec de l'e-mail : ",
     st: { draft: 'Brouillon', sent: 'Envoyé', accepted: 'Accepté', declined: 'Refusé', converted: 'Commande créée', expired: 'Expiré' },
     msg: (n: string, u: string) => `Bonjour, voici votre devis ${n} : ${u}`,
@@ -225,6 +226,7 @@ function QuoteDetail({ quote: q, canWrite, onClose, onChanged, onEdit }: { quote
             <input readOnly value={q.public_url} onFocus={(e) => e.target.select()} className={inputCls + ' font-mono'} style={inputStyle} data-testid="quote-link" />
             <div className="flex flex-wrap gap-2 mt-2">
               <button className={btn} style={ghost} onClick={async () => { try { await navigator.clipboard.writeText(q.public_url); setCopied(true); } catch { /* the field is selectable */ } }}>{copied ? s.copied : s.copy}</button>
+              <button className={btn} style={ghost} onClick={async () => { try { printHtml((await api.getQuotePrint(q.id, q.locale === 'en' ? 'en' : 'fr')).html); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } }} data-testid="quote-print">{s.print}</button>
               {digits.length >= 8 && <a className={btn} style={ghost} href={wa} target="_blank" rel="noreferrer">{s.whatsapp}</a>}
             </div>
           </div>

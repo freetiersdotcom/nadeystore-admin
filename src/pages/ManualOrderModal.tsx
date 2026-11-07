@@ -18,7 +18,7 @@ type Line = { sku: string; qty: string; price: string };
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (orderId?: string) => void;
 };
 
 export function ManualOrderModal({ open, onClose, onCreated }: Props) {
@@ -89,8 +89,8 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
 
   const mutation = useMutation({
     mutationFn: (body: Parameters<typeof api.createManualOrder>[0]) => api.createManualOrder(body),
-    onSuccess: () => {
-      onCreated();
+    onSuccess: (res) => {
+      onCreated(res?.order_id);
       reset();
       onClose();
     },

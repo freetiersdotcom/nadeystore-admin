@@ -195,7 +195,7 @@ export default function App() {
       hasUser={!!me.user}
       userLabel={me.user ? `${me.user.email} · ${me.user.role}` : undefined}
     >
-      {currentPage === 'orders' && <Orders canCosts={can('costs.manage')} />}
+      {currentPage === 'orders' && <Orders canCosts={can('costs.manage')} canShop={can('settings.manage')} />}
       {currentPage === 'customers' && <Customers />}
       {currentPage === 'inventory' && <Inventory />}
       {currentPage === 'products' && <Products />}

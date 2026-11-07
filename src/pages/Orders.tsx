@@ -28,6 +28,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { OrdersExport } from '../components/DataTransfer';
 import { Modal } from '../components/Modal';
 import { OrderProfit } from './OrderProfit';
+import { ReceiptButton } from './Receipt';
 import { PaymentPanel } from './PaymentPanel';
 import { ManualOrderModal } from './ManualOrderModal';
 import { PlanPanel } from './PlanPanel';
@@ -62,7 +63,7 @@ const REFUND_METHODS: RefundMethod[] = [
 // Currencies whose smallest unit is the whole currency (amounts are stored as-is).
 const ZERO_DECIMAL = new Set(['XOF', 'GNF', 'JPY', 'KRW', 'VND']);
 
-export function Orders({ canCosts = false }: { canCosts?: boolean } = {}) {
+export function Orders({ canCosts = false, canShop = false }: { canCosts?: boolean; canShop?: boolean } = {}) {
   const queryClient = useQueryClient();
   const t = useT();
 
@@ -479,6 +480,8 @@ export function Orders({ canCosts = false }: { canCosts?: boolean } = {}) {
               label={t(`orders.status.${selectedOrder.status}` as Parameters<typeof t>[0])}
             />
 
+            <div><ReceiptButton key={`receipt-${selectedOrder.id}`} order={selectedOrder} canEditShop={canShop} /></div>
+
             {canCosts && <OrderProfit key={`profit-${selectedOrder.id}`} orderId={selectedOrder.id} />}
 
             {/* Payments: balance, history, record a payment */}
@@ -860,7 +863,11 @@ export function Orders({ canCosts = false }: { canCosts?: boolean } = {}) {
       <ManualOrderModal
         open={newOrderOpen}
         onClose={() => setNewOrderOpen(false)}
-        onCreated={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+        onCreated={(orderId) => {
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+          // Open the new order straight away: a counter sale usually ends with a printed receipt.
+          if (orderId) api.getOrder(orderId).then((o) => setSelectedOrder(o as Order)).catch(() => {});
+        }}
       />
 
       {/* Manual refund dialog */}

@@ -149,6 +149,7 @@ export type ApiKeyItem = {
 export type CostItem = { sku: string; product_title: string; variant_title: string; currency: string; price_cents: number; cost_cents: number | null; product_type: string; product_status: string };
 export type ProfitCurrency = { currency: string; orders: number; revenue_cents: number; shipping_cents: number; refunded_cents: number; known_orders: number; unknown_orders: number; known_revenue_cents: number; cost_cents: number; fees_cents: number; margin_cents: number; coverage_pct: number; margin_pct: number | null };
 export type ProfitReport = { from: string; to: string; truncated: boolean; currencies: ProfitCurrency[]; by_product: { currency: string; sku: string; title: string; units: number; revenue_cents: number; cost_cents: number; margin_cents: number }[]; by_day: { day: string; currency: string; revenue_cents: number; margin_cents: number }[]; fees: Record<string, number> };
+export type ShopProfile = { name: string; address: string; phone: string; email: string; tax_id: string; footer_fr: string; footer_en: string; paper: 'ticket' | 'a4' };
 export type OrderProfit = { currency: string; revenue_cents: number; refunded_cents: number; discount_cents: number; cost_cents: number | null; fees_cents: number | null; margin_cents: number | null; margin_pct: number | null; complete: boolean; lines: { sku: string; title: string; qty: number; unit_price_cents: number; cost_cents: number | null }[] };
 export type CostImportReport = { ok: boolean; problems: { line: number; message: string }[]; updated: number; to_update?: number };
 export type LaunchCheck = { id: string; ok: boolean; must: boolean; count?: number; sample?: string[] };
@@ -660,6 +661,7 @@ export const api = {
   // Quotations module
   async getQuotes() { return request<{ items: Quote[] }>('/v1/m/quotes'); },
   async createQuote(b: QuoteInput & { currency: string }) { return request<Quote>('/v1/m/quotes', { method: 'POST', body: JSON.stringify(b) }); },
+  async getQuotePrint(id: string, lang: 'fr' | 'en') { return request<{ html: string }>(`/v1/m/quotes/${id}/print?lang=${lang}`); },
   async updateQuote(id: string, b: Partial<QuoteInput>) { return request<Quote>(`/v1/m/quotes/${id}`, { method: 'PATCH', body: JSON.stringify(b) }); },
   async sendQuote(id: string) { return request<Quote & { emailed: boolean; email_error: string | null }>(`/v1/m/quotes/${id}/send`, { method: 'POST' }); },
   async quoteConverted(id: string, orderId: string) { return request<Quote>(`/v1/m/quotes/${id}/converted`, { method: 'POST', body: JSON.stringify({ order_id: orderId }) }); },
@@ -1394,6 +1396,8 @@ export const api = {
   },
   exportCosts() { return downloadFile('/v1/costs/export.csv', 'costs.csv'); },
   getProfit(from: string, to: string) { return request<ProfitReport>(`/v1/profit?from=${from}&to=${to}`); },
+  getShopProfile() { return request<ShopProfile>('/v1/shop-profile'); },
+  saveShopProfile(b: ShopProfile) { return request<ShopProfile>('/v1/shop-profile', { method: 'PUT', body: JSON.stringify(b) }); },
   getOrderProfit(id: string) { return request<OrderProfit>(`/v1/profit/order/${encodeURIComponent(id)}`); },
   getProfitFees() { return request<{ fees: Record<string, number>; methods: string[] }>('/v1/profit/fees'); },
   saveProfitFees(fees: Record<string, number>) { return request<{ fees: Record<string, number> }>('/v1/profit/fees', { method: 'PUT', body: JSON.stringify({ fees }) }); },
