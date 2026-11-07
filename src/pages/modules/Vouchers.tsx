@@ -10,7 +10,7 @@ const S = {
   en: {
     title: 'WiFi vouchers', help: 'Load the codes your router already knows, link them to a product, and every paid order gets its code automatically (page, e-mail, counter receipt). If you run out, paid orders wait and are served first-come-first-served when you load more.',
     empty: 'No voucher product yet. Add one below.', stock: 'In stock', sold: 'Sold', waiting: 'Waiting for a code', low: 'Running low', none: 'Out of stock',
-    load: 'Load codes', instr: 'Instructions', remove: 'Remove', confirmRemove: 'Stop selling this product as a code?', addPlan: 'Add a voucher product', pick: 'Choose a product…', add: 'Add',
+    load: 'Load codes', instr: 'Instructions', remove: 'Remove', confirmRemove: 'Stop selling this product as a code?', newTitle: 'Create a new voucher product', newName: 'Name (e.g. WiFi 1 day)', newPrice: 'Price (smallest unit, e.g. 300 for 300 F)', create: 'Create and sell as a code', createHelp: 'Creates the product (type Digital, no file, no stock, no delivery address) and links it, in one step.', addPlan: 'Add a voucher product', pick: 'Choose a product…', add: 'Add',
     paste: 'Paste the codes, one per line: username or username,password. A header line is fine.', batch: 'Batch name (optional)', check: 'Check', loadNow: 'Load', cancel: 'Cancel', save: 'Save',
     okCheck: (n: number) => `${n} code(s) ready to load.`, added: (n: number) => `${n} code(s) loaded.`, refused: 'Nothing was loaded. Fix these lines and try again:', line: 'Line',
     fr: 'Instructions (French)', en: 'Instructions (English)', instrHelp: 'Shown with the code (e.g. “Connect to WiFi Santé, open any page, enter the code”).',
@@ -23,7 +23,7 @@ const S = {
   fr: {
     title: 'Vouchers WiFi', help: 'Chargez les codes que votre routeur connaît déjà, liez-les à un produit, et chaque commande payée reçoit son code automatiquement (page, e-mail, ticket au comptoir). En rupture, les commandes payées attendent et sont servies dans l’ordre dès que vous rechargez.',
     empty: 'Aucun produit voucher pour le moment. Ajoutez-en un ci-dessous.', stock: 'En stock', sold: 'Vendus', waiting: 'En attente de code', low: 'Stock bas', none: 'Rupture',
-    load: 'Charger des codes', instr: 'Instructions', remove: 'Retirer', confirmRemove: 'Ne plus vendre ce produit comme un code ?', addPlan: 'Ajouter un produit voucher', pick: 'Choisir un produit…', add: 'Ajouter',
+    load: 'Charger des codes', instr: 'Instructions', remove: 'Retirer', confirmRemove: 'Ne plus vendre ce produit comme un code ?', newTitle: 'Créer un nouveau produit voucher', newName: 'Nom (ex. WiFi 1 jour)', newPrice: 'Prix (plus petite unité, ex. 300 pour 300 F)', create: 'Créer et vendre comme code', createHelp: 'Crée le produit (type Digital, sans fichier, sans stock, sans adresse de livraison) et le relie, en une seule étape.', addPlan: 'Ajouter un produit voucher', pick: 'Choisir un produit…', add: 'Ajouter',
     paste: 'Collez les codes, un par ligne : identifiant ou identifiant,mot de passe. Une ligne d’en-tête est acceptée.', batch: 'Nom du lot (facultatif)', check: 'Vérifier', loadNow: 'Charger', cancel: 'Annuler', save: 'Enregistrer',
     okCheck: (n: number) => `${n} code(s) prêts à charger.`, added: (n: number) => `${n} code(s) chargés.`, refused: 'Rien n’a été chargé. Corrigez ces lignes puis réessayez :', line: 'Ligne',
     fr: 'Instructions (français)', en: 'Instructions (anglais)', instrHelp: 'Affichées avec le code (ex. « Connectez-vous au WiFi Santé, ouvrez une page, saisissez le code »).',
@@ -70,6 +70,21 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
   const plans = data?.items ?? [];
   const taken = new Set(plans.map((p) => p.sku));
   const variants = (products.data?.items ?? []).flatMap((p) => (p.variants ?? []).filter((v) => v.sku && !taken.has(v.sku)).map((v) => ({ sku: v.sku, label: `${p.title}${v.title && v.title !== 'Default' ? ' — ' + v.title : ''} (${v.sku})` })));
+  const [newName, setNewName] = useState(''); const [newPrice, setNewPrice] = useState('');
+  const create = useMutation({
+    mutationFn: async () => {
+      const price = parseInt(newPrice, 10);
+      if (!newName.trim() || !Number.isFinite(price) || price < 0) throw new Error(s.newName);
+      const product = await api.createProduct({ title: newName.trim() });
+      const sku = `WIFI-${newName.trim().toUpperCase().normalize('NFD').replace(/[^A-Z0-9]+/g, '').slice(0, 8)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      try {
+        await api.createVariant(product.id, { sku, title: 'Default', price_cents: price, product_type: 'digital' });
+        await api.saveVoucherPlan(sku, {});
+      } catch (e) { try { await api.deleteProduct(product.id); } catch { /* leave the product; it can be removed in Products */ } throw e; }
+    },
+    onSuccess: () => { setNewName(''); setNewPrice(''); setNote(''); refresh(); qc.invalidateQueries({ queryKey: ['products'] }); },
+    onError: (e: any) => setNote(e.message),
+  });
   const addPlan = useMutation({ mutationFn: (sku: string) => api.saveVoucherPlan(sku, {}), onSuccess: () => { setPick(''); refresh(); } });
   const delPlan = useMutation({ mutationFn: (sku: string) => api.deleteVoucherPlan(sku), onSuccess: refresh, onError: (e: any) => setNote(e.message) });
   const resend = useMutation({ mutationFn: (id: string) => api.resendVoucher(id), onSuccess: (r) => { setNote(r.emailed ? s.wasent : s.notSent); refresh(); }, onError: (e: any) => setNote(e.message) });
@@ -109,6 +124,18 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
           );
         })}
       </div>
+
+      {canWrite && (
+        <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} data-testid="v-create">
+          <label className={labelCls} style={muted}>{s.newTitle}</label>
+          <p className="text-xs" style={muted}>{s.createHelp}</p>
+          <div className="flex flex-wrap gap-2">
+            <input className={inputCls} style={{ ...inputStyle, flex: '2 1 200px' }} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={s.newName} data-testid="v-new-name" />
+            <input className={inputCls} style={{ ...inputStyle, flex: '1 1 140px' }} inputMode="numeric" value={newPrice} onChange={(e) => setNewPrice(e.target.value.replace(/[^\d]/g, ''))} placeholder={s.newPrice} data-testid="v-new-price" />
+            <button className={btn} style={solid} disabled={create.isPending || !newName.trim() || !newPrice} onClick={() => create.mutate()} data-testid="v-new-go">{s.create}</button>
+          </div>
+        </div>
+      )}
 
       {canWrite && (
         <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>

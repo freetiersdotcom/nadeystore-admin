@@ -911,6 +911,8 @@ export const api = {
     return request<Product>(`/v1/products/${id}`);
   },
 
+  async deleteProduct(id: string) { return request<{ deleted: true }>(`/v1/products/${id}`, { method: 'DELETE' }); },
+
   async createProduct(data: { title: string; description?: string; tags?: string[] }) {
     return request<Product>('/v1/products', {
       method: 'POST',
