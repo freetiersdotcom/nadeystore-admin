@@ -1,4 +1,4 @@
-import { getAuth, AUTH_MODE } from './store';
+import { getAuth, AUTH_MODE, STORE_CURRENCY } from './store';
 
 export class ApiError extends Error {
   constructor(
@@ -951,11 +951,12 @@ export const api = {
       image_url?: string;
       product_type?: 'physical' | 'digital' | 'service';
       weight_g?: number;
+      currency?: string;
     }
   ) {
     return request<Variant>(`/v1/products/${productId}/variants`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ currency: STORE_CURRENCY, ...data }),
     });
   },
 
