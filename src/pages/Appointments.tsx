@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2, Pencil, CalendarClock, Ban } from 'lucide-react';
 import clsx from 'clsx';
-import { api, BookingService, BookingRule, AgendaItem } from '../lib/api';
+import { api, BookingService, BookingRule, AgendaItem, BookingProvider } from '../lib/api';
 import { Modal } from '../components/Modal';
 import { useT } from '../lib/locale-context';
 
-type Tab = 'agenda' | 'services' | 'blocks';
+type Tab = 'agenda' | 'services' | 'providers' | 'blocks';
 
 // ── Time zone picker ──────────────────────────────────────────────────────
 // A text box expects people to know "Africa/Porto-Novo" by heart: pick from the browser's own list instead.
@@ -93,12 +93,19 @@ const inputCls = 'w-full rounded-lg border border-gray-200 dark:border-gray-700 
 const btnPrimary = 'inline-flex items-center gap-2 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-3 py-2 text-sm font-medium disabled:opacity-50';
 const btnGhost = 'inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50';
 
+/** The providers (people performing services). The picker only appears once there are two or more. */
+function useProviders() {
+  const q = useQuery({ queryKey: ['booking-providers'], queryFn: () => api.getBookingProviders() });
+  const all = q.data?.items ?? [];
+  return { all, active: all.filter((p) => p.active), multi: all.filter((p) => p.active).length > 1 || all.length > 1 };
+}
+
 // ── page ──────────────────────────────────────────────────────────────────
 
 export function Appointments() {
   const t = useT();
   const [tab, setTab] = useState<Tab>('agenda');
-  const tabs: Array<[Tab, string]> = [['agenda', t('appt.tab.agenda')], ['services', t('appt.tab.services')], ['blocks', t('appt.tab.blocks')]];
+  const tabs: Array<[Tab, string]> = [['agenda', t('appt.tab.agenda')], ['services', t('appt.tab.services')], ['providers', t('appt.tab.providers')], ['blocks', t('appt.tab.blocks')]];
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <h1 className="text-xl font-semibold mb-4">{t('appt.title')}</h1>
@@ -112,6 +119,7 @@ export function Appointments() {
       </div>
       {tab === 'agenda' && <AgendaTab />}
       {tab === 'services' && <ServicesTab />}
+      {tab === 'providers' && <ProvidersTab />}
       {tab === 'blocks' && <BlocksTab />}
     </div>
   );
@@ -128,20 +136,24 @@ function AgendaTab() {
   const [when, setWhen] = useState('');
   const [notify, setNotify] = useState(true);
   const [error, setError] = useState('');
+  const prov = useProviders();
+  const [filter, setFilter] = useState('');
+  const [resourceId, setResourceId] = useState('');
 
   const q = useQuery({
-    queryKey: ['agenda', showPast],
-    queryFn: () => api.getAgenda(showPast
-      ? { from: new Date(Date.now() - 90 * 86400_000).toISOString(), status: 'all' }
-      : { from: new Date().toISOString(), status: 'booked' }),
+    queryKey: ['agenda', showPast, filter],
+    queryFn: () => api.getAgenda({
+      ...(showPast ? { from: new Date(Date.now() - 90 * 86400_000).toISOString(), status: 'all' as const } : { from: new Date().toISOString(), status: 'booked' as const }),
+      resource_id: filter || undefined,
+    }),
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ['agenda'] });
 
   const save = useMutation({
     mutationFn: async () => {
       const start = fromLocalInput(when);
-      if (moving?.id) return api.moveAppointment(moving.id, { start, notify });
-      return api.bookAppointment({ order_id: moving!.orderId!, start, notify });
+      if (moving?.id) return api.moveAppointment(moving.id, { start, notify, resource_id: resourceId || undefined });
+      return api.bookAppointment({ order_id: moving!.orderId!, start, notify, resource_id: resourceId || undefined });
     },
     onSuccess: () => { setMoving(null); setError(''); refresh(); },
     onError: (e: any) => setError(e.message),
@@ -160,7 +172,7 @@ function AgendaTab() {
   }
 
   const open = (m: NonNullable<typeof moving>) => {
-    setMoving(m); setError(''); setNotify(true);
+    setMoving(m); setError(''); setNotify(true); setResourceId('');
     setWhen(m.current ? toLocalInput(m.current) : '');
   };
 
@@ -187,9 +199,17 @@ function AgendaTab() {
 
       <div className="flex items-center justify-between">
         <h2 className="font-medium">{showPast ? t('appt.allRecent') : t('appt.upcoming')}</h2>
-        <label className="text-sm flex items-center gap-2">
-          <input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} /> {t('appt.showPast')}
-        </label>
+        <div className="flex items-center gap-4">
+          {prov.multi && (
+            <select className={clsx(inputCls, 'w-auto')} value={filter} onChange={(e) => setFilter(e.target.value)} aria-label={t('appt.provider')} data-testid="agenda-provider">
+              <option value="">{t('appt.providerAll')}</option>
+              {prov.all.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          )}
+          <label className="text-sm flex items-center gap-2">
+            <input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} /> {t('appt.showPast')}
+          </label>
+        </div>
       </div>
 
       {items.length === 0 && <p className="text-sm text-gray-500">{t('appt.empty')}</p>}
@@ -201,7 +221,7 @@ function AgendaTab() {
             {rows.map((a) => (
               <li key={a.id} className={clsx('p-3 flex flex-wrap items-center justify-between gap-3', a.status === 'canceled' && 'opacity-50')}>
                 <div className="text-sm">
-                  <div className="font-medium">{fmtTime(a.starts_at, loc)} – {fmtTime(a.ends_at, loc)} · {a.title}</div>
+                  <div className="font-medium">{fmtTime(a.starts_at, loc)} – {fmtTime(a.ends_at, loc)} · {a.title}{prov.multi && a.resource_name ? <span className="text-gray-500 font-normal"> · {a.resource_name}</span> : null}</div>
                   <div className="text-gray-500">{a.order_number} · {a.customer_name ? a.customer_name + ' · ' : ''}{a.customer_email}{a.customer_phone ? <> · <a className="underline" href={`https://wa.me/${a.customer_phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{a.customer_phone}</a></> : null}</div>
                   {a.status === 'canceled' && <div className="text-xs text-red-600">{t('appt.canceled')}</div>}
                 </div>
@@ -225,6 +245,15 @@ function AgendaTab() {
       <Modal open={!!moving} onClose={() => setMoving(null)} title={moving?.id ? t('appt.moveTitle') : t('appt.scheduleTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">{moving?.label}</p>
+          {prov.multi && (
+            <label className="block text-sm">
+              <span className="block mb-1">{t('appt.provider')}</span>
+              <select className={inputCls} value={resourceId} onChange={(e) => setResourceId(e.target.value)} data-testid="schedule-provider">
+                <option value="">{moving?.id ? t('appt.providerKeep') : t('appt.providerAuto')}</option>
+                {prov.active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>
+          )}
           <label className="block text-sm">
             <span className="block mb-1">{t('appt.newTime')}</span>
             <input type="datetime-local" className={inputCls} value={when} onChange={(e) => setWhen(e.target.value)} />
@@ -251,11 +280,11 @@ function AgendaTab() {
 type Draft = {
   enabled: boolean; tz: string; rules: BookingRule[];
   lead_hours: number; horizon_days: number; buffer_min: number; step_min: number;
-  default_duration_min: number; durations: Record<string, number>;
+  default_duration_min: number; durations: Record<string, number>; resource_ids: string[];
 };
 
 const DEFAULT_DRAFT = (tz: string): Draft => ({
-  enabled: true, tz, lead_hours: 24, horizon_days: 60, buffer_min: 0, step_min: 30, default_duration_min: 60, durations: {},
+  enabled: true, tz, lead_hours: 24, horizon_days: 60, buffer_min: 0, step_min: 30, default_duration_min: 60, durations: {}, resource_ids: [],
   rules: [1, 2, 3, 4, 5].map((dow) => ({ dow, start: '09:00', end: '17:00' })),
 });
 
@@ -266,6 +295,7 @@ function ServicesTab() {
   const [editing, setEditing] = useState<BookingService | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState('');
+  const prov = useProviders();
 
   const save = useMutation({
     mutationFn: () => api.saveBookingService(editing!.product_id, draft!),
@@ -278,7 +308,8 @@ function ServicesTab() {
     setDraft(b ? {
       enabled: b.enabled, tz: b.tz, rules: b.rules, lead_hours: b.lead_hours, horizon_days: b.horizon_days,
       buffer_min: b.buffer_min, step_min: b.step_min, default_duration_min: b.default_duration_min, durations: { ...b.durations },
-    } : DEFAULT_DRAFT(q.data!.default_tz));
+      resource_ids: s.resource_ids ?? [],
+    } : { ...DEFAULT_DRAFT(q.data!.default_tz), resource_ids: s.resource_ids ?? [] });
     setError(''); setEditing(s);
   };
   const num = (v: string) => Math.max(0, Math.floor(Number(v) || 0));
@@ -384,6 +415,21 @@ function ServicesTab() {
               <div className="col-span-2"><span className="block mb-1">{t('appt.tz')}</span>
                 <TimeZoneSelect className={inputCls} value={draft.tz} onChange={(tz) => set({ tz })} ariaLabel={t('appt.tz')} commonLabel={t('appt.tzCommon')} browserLabel={t('appt.tzBrowser')} /></div>
             </div>
+            {prov.all.length > 1 && (
+              <div>
+                <h4 className="text-sm font-medium mb-1">{t('appt.whoPerforms')}</h4>
+                <p className="text-xs text-gray-500 mb-2">{t('appt.whoHint')}</p>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                  {prov.all.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2">
+                      <input type="checkbox" checked={draft.resource_ids.includes(p.id)}
+                        onChange={(e) => set({ resource_ids: e.target.checked ? [...draft.resource_ids, p.id] : draft.resource_ids.filter((i) => i !== p.id) })} />
+                      {p.name}{!p.active ? <span className="text-gray-400"> ({t('appt.providerHidden')})</span> : null}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <p className="text-xs text-gray-500">{t('appt.sharedAgenda')}</p>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -411,10 +457,12 @@ function BlocksTab() {
   const [to, setTo] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  const prov = useProviders();
+  const [who, setWho] = useState('');
   const refresh = () => { qc.invalidateQueries({ queryKey: ['agenda'] }); };
 
   const add = useMutation({
-    mutationFn: () => api.addBlock({ starts_at: fromLocalInput(from), ends_at: fromLocalInput(to), note: note || null }),
+    mutationFn: () => api.addBlock({ starts_at: fromLocalInput(from), ends_at: fromLocalInput(to), note: note || null, resource_id: who || null }),
     onSuccess: () => { setFrom(''); setTo(''); setNote(''); setError(''); refresh(); },
     onError: (e: any) => setError(e.message),
   });
@@ -423,24 +471,128 @@ function BlocksTab() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-gray-500">{t('appt.blocksHint')}</p>
-      <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-4 grid sm:grid-cols-4 gap-3 items-end text-sm">
+      <div className={clsx('rounded-xl border border-gray-200 dark:border-gray-800 p-4 grid gap-3 items-end text-sm', prov.multi ? 'sm:grid-cols-5' : 'sm:grid-cols-4')}>
+        {prov.multi && (
+          <label><span className="block mb-1">{t('appt.provider')}</span>
+            <select className={inputCls} value={who} onChange={(e) => setWho(e.target.value)} data-testid="block-provider">
+              <option value="">{t('appt.everyone')}</option>
+              {prov.active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select></label>
+        )}
         <label><span className="block mb-1">{t('appt.from')}</span><input type="datetime-local" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label><span className="block mb-1">{t('appt.to')}</span><input type="datetime-local" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} /></label>
         <label><span className="block mb-1">{t('appt.note')}</span><input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></label>
         <button className={btnPrimary} disabled={!from || !to || add.isPending} onClick={() => add.mutate()}><Plus size={14} /> {t('appt.addBlock')}</button>
-        {error && <p className="sm:col-span-4 text-red-600">{error}</p>}
+        {error && <p className="sm:col-span-5 text-red-600">{error}</p>}
       </div>
       {q.isLoading ? <Loader2 className="animate-spin" /> : (
         <ul className="rounded-xl border border-gray-200 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
           {(q.data?.blocks ?? []).length === 0 && <li className="p-4 text-sm text-gray-500">{t('appt.noBlocks')}</li>}
           {(q.data?.blocks ?? []).map((b) => (
             <li key={b.id} className="p-3 flex items-center justify-between gap-3 text-sm">
-              <span>{fmtDateTime(b.starts_at, loc)} → {fmtDateTime(b.ends_at, loc)}{b.note ? <span className="text-gray-500"> · {b.note}</span> : null}</span>
+              <span>{fmtDateTime(b.starts_at, loc)} → {fmtDateTime(b.ends_at, loc)}{prov.multi ? <span className="text-gray-500"> · {b.resource_id ? (prov.all.find((p) => p.id === b.resource_id)?.name ?? '') : t('appt.everyone')}</span> : null}{b.note ? <span className="text-gray-500"> · {b.note}</span> : null}</span>
               <button className="tap p-1 text-gray-400 hover:text-red-600" onClick={() => del.mutate(b.id)}><Trash2 size={14} /></button>
             </li>
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ── providers ─────────────────────────────────────────────────────────────
+
+function ProvidersTab() {
+  const t = useT();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['booking-providers'], queryFn: () => api.getBookingProviders() });
+  const [editing, setEditing] = useState<BookingProvider | 'new' | null>(null);
+  const [name, setName] = useState('');
+  const [rules, setRules] = useState<BookingRule[]>([]);
+  const [error, setError] = useState('');
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['booking-providers'] }); qc.invalidateQueries({ queryKey: ['booking-services'] }); };
+  const dayLabel = (d: number) => t(`appt.day.${d}` as any);
+
+  const open = (p: BookingProvider | 'new') => {
+    setEditing(p); setError('');
+    setName(p === 'new' ? '' : p.name); setRules(p === 'new' ? [] : p.rules);
+  };
+  const save = useMutation({
+    mutationFn: () => editing === 'new'
+      ? api.createBookingProvider({ name, rules })
+      : api.updateBookingProvider((editing as BookingProvider).id, { name, rules }),
+    onSuccess: () => { setEditing(null); refresh(); },
+    onError: (e: any) => setError(e.message),
+  });
+  const toggle = useMutation({
+    mutationFn: (p: BookingProvider) => api.updateBookingProvider(p.id, { active: !p.active }),
+    onSuccess: refresh, onError: (e: any) => alert(e.message),
+  });
+  const del = useMutation({
+    mutationFn: (id: string) => api.deleteBookingProvider(id),
+    onSuccess: refresh, onError: (e: any) => alert(e.message),
+  });
+
+  if (q.isLoading) return <Loader2 className="animate-spin" />;
+  const items = q.data?.items ?? [];
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-500">{t('appt.providersHint')}</p>
+      <ul className="rounded-xl border border-gray-200 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
+        {items.map((p) => (
+          <li key={p.id} className={clsx('p-3 flex flex-wrap items-center justify-between gap-3', !p.active && 'opacity-60')} data-testid={`provider-${p.id}`}>
+            <div className="text-sm">
+              <div className="font-medium">{p.name}{!p.active ? <span className="ml-2 text-xs text-gray-500">({t('appt.providerHidden')})</span> : null}</div>
+              <div className="text-gray-500">{p.rules.length ? DAYS.filter((d) => p.rules.some((r) => r.dow === d)).map((d) => `${dayLabel(d)} ${p.rules.filter((r) => r.dow === d).map((r) => `${r.start}–${r.end}`).join(', ')}`).join(' · ') : t('appt.followsService')}
+                {typeof p.upcoming === 'number' ? ` · ${p.upcoming} ${t('appt.providerUpcoming')}` : ''}</div>
+            </div>
+            <div className="flex gap-2">
+              <button className={btnGhost} onClick={() => open(p)}><Pencil size={14} /> {t('appt.configure')}</button>
+              <button className={btnGhost} disabled={toggle.isPending} onClick={() => toggle.mutate(p)}>{p.active ? t('appt.providerHidden') : t('appt.providerActive')}</button>
+              <button className={btnGhost} disabled={del.isPending} onClick={() => { if (confirm(t('appt.providerDeleteConfirm'))) del.mutate(p.id); }}><Trash2 size={14} /> {t('appt.providerDelete')}</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button className={btnPrimary} onClick={() => open('new')} data-testid="provider-add"><Plus size={14} /> {t('appt.addProvider')}</button>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing === 'new' ? t('appt.addProvider') : t('appt.provider')} size="lg">
+        <div className="space-y-4">
+          <label className="block text-sm"><span className="block mb-1">{t('appt.providerName')}</span>
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} data-testid="provider-name" /></label>
+          <div>
+            <h4 className="text-sm font-medium mb-2">{t('appt.providerHours')}</h4>
+            <div className="space-y-2">
+              {DAYS.map((d) => {
+                const rows = rules.map((r, i) => ({ r, i })).filter((x) => x.r.dow === d);
+                return (
+                  <div key={d} className="flex flex-wrap items-start gap-2 text-sm">
+                    <div className="w-24 pt-2">{dayLabel(d)}</div>
+                    <div className="flex-1 space-y-1">
+                      {rows.map(({ r, i }) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input type="time" className={clsx(inputCls, 'w-32')} value={r.start} onChange={(e) => setRules(rules.map((x, j) => j === i ? { ...x, start: e.target.value } : x))} />
+                          <span>–</span>
+                          <input type="time" className={clsx(inputCls, 'w-32')} value={r.end} onChange={(e) => setRules(rules.map((x, j) => j === i ? { ...x, end: e.target.value } : x))} />
+                          <button className="tap p-1 text-gray-400 hover:text-red-600" onClick={() => setRules(rules.filter((_, j) => j !== i))}><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <button className={btnGhost} onClick={() => setRules([...rules, { dow: d, start: '09:00', end: '12:00' }])}><Plus size={14} /></button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button className={btnGhost} onClick={() => setEditing(null)}>{t('appt.close')}</button>
+            <button className={btnPrimary} disabled={!name.trim() || save.isPending} onClick={() => save.mutate()} data-testid="provider-save">
+              {save.isPending && <Loader2 size={14} className="animate-spin" />} {t('appt.save')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

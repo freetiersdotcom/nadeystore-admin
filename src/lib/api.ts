@@ -600,13 +600,19 @@ export type BookingConfig = {
 };
 export type BookingService = {
   product_id: string; title: string; variants: Array<{ sku: string; title: string }>; booking: BookingConfig | null;
+  resource_ids?: string[];
+};
+export type BookingProvider = {
+  id: string; name: string; active: boolean; position: number; tz: string | null; rules: BookingRule[];
+  product_ids?: string[]; upcoming?: number;
 };
 export type AgendaItem = {
   id: string; sku: string; title: string; status: 'booked' | 'canceled'; starts_at: string; ends_at: string;
   customer_tz: string | null; order_id: string | null; order_number: string | null; customer_email: string | null;
   customer_name: string | null; customer_phone: string | null; order_status: string | null;
+  resource_id?: string | null; resource_name?: string | null;
 };
-export type BookingBlock = { id: string; product_id: string | null; starts_at: string; ends_at: string; note: string | null };
+export type BookingBlock = { id: string; product_id: string | null; resource_id?: string | null; starts_at: string; ends_at: string; note: string | null };
 export type Agenda = {
   items: AgendaItem[]; blocks: BookingBlock[];
   unscheduled: Array<{ order_id: string; order_number: string; customer_email: string; customer_phone: string | null; created_at: string; needs_review: number; review_reason: string | null }>;
@@ -1267,26 +1273,39 @@ export const api = {
   async getBookingServices() {
     return request<{ items: BookingService[]; default_tz: string }>('/v1/bookings/services');
   },
-  async saveBookingService(productId: string, body: Omit<BookingConfig, 'product_id'>) {
+  async getBookingProviders() {
+    return request<{ items: BookingProvider[]; default_tz: string }>('/v1/bookings/providers');
+  },
+  async createBookingProvider(body: { name: string; tz?: string | null; rules?: BookingRule[] }) {
+    return request<BookingProvider>('/v1/bookings/providers', { method: 'POST', body: JSON.stringify(body) });
+  },
+  async updateBookingProvider(id: string, body: { name?: string; active?: boolean; tz?: string | null; rules?: BookingRule[] }) {
+    return request<BookingProvider>(`/v1/bookings/providers/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  },
+  async deleteBookingProvider(id: string) {
+    return request<{ deleted: true }>(`/v1/bookings/providers/${id}`, { method: 'DELETE' });
+  },
+  async saveBookingService(productId: string, body: Omit<BookingConfig, 'product_id'> & { resource_ids?: string[] }) {
     return request<BookingConfig>(`/v1/bookings/services/${productId}`, { method: 'PUT', body: JSON.stringify(body) });
   },
-  async getAgenda(params: { from?: string; to?: string; status?: 'booked' | 'canceled' | 'all' } = {}) {
+  async getAgenda(params: { from?: string; to?: string; status?: 'booked' | 'canceled' | 'all'; resource_id?: string } = {}) {
     const sp = new URLSearchParams();
     if (params.from) sp.set('from', params.from);
     if (params.to) sp.set('to', params.to);
     if (params.status) sp.set('status', params.status);
+    if (params.resource_id) sp.set('resource_id', params.resource_id);
     return request<Agenda>(`/v1/bookings/agenda?${sp.toString()}`);
   },
-  async bookAppointment(body: { order_id: string; start: string; sku?: string; notify?: boolean }) {
+  async bookAppointment(body: { order_id: string; start: string; sku?: string; resource_id?: string; notify?: boolean }) {
     return request<unknown>('/v1/bookings/appointments', { method: 'POST', body: JSON.stringify(body) });
   },
-  async moveAppointment(id: string, body: { start: string; notify?: boolean }) {
+  async moveAppointment(id: string, body: { start: string; resource_id?: string; notify?: boolean }) {
     return request<unknown>(`/v1/bookings/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
   },
   async cancelAppointment(id: string, body: { notify?: boolean } = {}) {
     return request<{ canceled: true }>(`/v1/bookings/appointments/${id}/cancel`, { method: 'POST', body: JSON.stringify(body) });
   },
-  async addBlock(body: { starts_at: string; ends_at: string; note?: string | null; product_id?: string | null }) {
+  async addBlock(body: { starts_at: string; ends_at: string; note?: string | null; product_id?: string | null; resource_id?: string | null }) {
     return request<BookingBlock>('/v1/bookings/blocks', { method: 'POST', body: JSON.stringify(body) });
   },
   async deleteBlock(id: string) {
