@@ -160,6 +160,12 @@ export function Products() {
     },
   });
 
+  const deleteProductMutation = useMutation({
+    mutationFn: (id: string) => api.deleteProduct(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['products'] }); setSelectedProduct(null); },
+    onError: (e: any) => alert(e?.message || 'Could not delete'),
+  });
+
   const updateVariantMutation = useMutation({
     mutationFn: ({
       productId,
@@ -619,6 +625,12 @@ export function Products() {
                     <option value="active">{t('products.status.active')}</option>
                   </select>
                 </div>
+                <div className="self-end">
+                  <button type="button" disabled={deleteProductMutation.isPending} data-testid="product-delete"
+                    onClick={() => { if (confirm(t('products.deleteConfirm'))) deleteProductMutation.mutate(selectedProduct.id); }}
+                    className="px-3 py-2 text-sm rounded-lg" style={{ border: '1px solid var(--border)', color: '#dc2626' }}>
+                    {t('products.delete')}
+                  </button>
               </div>
               <div>
                 <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>
