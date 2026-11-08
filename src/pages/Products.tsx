@@ -631,6 +631,7 @@ export function Products() {
                     className="px-3 py-2 text-sm rounded-lg" style={{ border: '1px solid var(--border)', color: '#dc2626' }}>
                     {t('products.delete')}
                   </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>
