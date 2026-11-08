@@ -12,7 +12,7 @@ const S = {
     title: 'Quotations', help: 'Send a customer a link to a quote. They accept or decline online; an accepted quote becomes an order in one click.',
     new: 'New quote', empty: 'No quotes yet.', number: 'Quote', customer: 'Customer', total: 'Total', status: 'Status', valid: 'Valid until',
     name: 'Customer name', email: 'Email', phone: 'Phone / WhatsApp', locale: 'Language', items: 'Items', item: 'Choose an item', qty: 'Qty', price: 'Unit price (optional)',
-    addItem: 'Add an item', days: 'Valid for (days)', note: 'Note for the customer', save: 'Save', cancel: 'Cancel', edit: 'Edit', del: 'Delete', send: 'Send / share',
+    addItem: 'Add an item', addFree: 'Add a free-hand line', freeDesc: 'Description (e.g. delivery, custom work)', freePrice: 'Unit price *', days: 'Valid for (days)', note: 'Note for the customer', save: 'Save', cancel: 'Cancel', edit: 'Edit', del: 'Delete', send: 'Send / share',
     print: 'Print / PDF', link: 'Customer link', copy: 'Copy link', copied: 'Copied', whatsapp: 'WhatsApp', makeOrder: 'Create order', ordered: 'Order created', invalid: 'Add at least one item with a quantity.',
     sentEmail: 'Link emailed to the customer.', sentNoEmail: 'Marked as sent. Share the link below.', confirmDel: 'Delete this quote?', mail: 'Email notice failed: ',
     st: { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined', converted: 'Order created', expired: 'Expired' },
@@ -22,7 +22,7 @@ const S = {
     title: 'Devis', help: "Envoyez au client un lien vers son devis. Il l'accepte ou le refuse en ligne ; un devis accepté devient une commande en un clic.",
     new: 'Nouveau devis', empty: 'Aucun devis pour le moment.', number: 'Devis', customer: 'Client', total: 'Total', status: 'Statut', valid: "Valable jusqu'au",
     name: 'Nom du client', email: 'E-mail', phone: 'Téléphone / WhatsApp', locale: 'Langue', items: 'Articles', item: 'Choisir un article', qty: 'Qté', price: 'Prix unitaire (facultatif)',
-    addItem: 'Ajouter un article', days: 'Validité (jours)', note: 'Note pour le client', save: 'Enregistrer', cancel: 'Annuler', edit: 'Modifier', del: 'Supprimer', send: 'Envoyer / partager',
+    addItem: 'Ajouter un article', addFree: 'Ajouter une ligne libre', freeDesc: 'Description (ex. livraison, travail sur mesure)', freePrice: 'Prix unitaire *', days: 'Validité (jours)', note: 'Note pour le client', save: 'Enregistrer', cancel: 'Annuler', edit: 'Modifier', del: 'Supprimer', send: 'Envoyer / partager',
     print: 'Imprimer / PDF', link: 'Lien client', copy: 'Copier le lien', copied: 'Copié', whatsapp: 'WhatsApp', makeOrder: 'Créer la commande', ordered: 'Commande créée', invalid: 'Ajoutez au moins un article avec une quantité.',
     sentEmail: 'Lien envoyé par e-mail au client.', sentNoEmail: 'Marqué comme envoyé. Partagez le lien ci-dessous.', confirmDel: 'Supprimer ce devis ?', mail: "Échec de l'e-mail : ",
     st: { draft: 'Brouillon', sent: 'Envoyé', accepted: 'Accepté', declined: 'Refusé', converted: 'Commande créée', expired: 'Expiré' },
@@ -42,8 +42,10 @@ const ghost = { border: '1px solid var(--border)', color: 'var(--text)' };
 const solid = { background: 'var(--text)', color: 'var(--bg-card)' };
 const ZERO = new Set(['XOF', 'GNF', 'JPY', 'KRW', 'VND']);
 
-type Line = { sku: string; qty: string; price: string };
+type Line = { sku: string; qty: string; price: string; title?: string };
+const FREE = 'CUSTOM';                                    // the hidden catalog entry behind every free-hand line
 const emptyLine = (): Line => ({ sku: '', qty: '1', price: '' });
+const freeLine = (): Line => ({ sku: FREE, qty: '1', price: '', title: '' });
 
 export function Quotes({ canWrite }: { canWrite: boolean }) {
   const { locale } = useLocale();
@@ -107,7 +109,7 @@ function QuoteForm({ quote, onClose, onSaved }: { quote: Quote | null; onClose: 
   const [days, setDays] = useState('14');
   const [note, setNote] = useState(quote?.note ?? '');
   const [lines, setLines] = useState<Line[]>(
-    quote ? quote.items.map((i) => ({ sku: i.sku, qty: String(i.qty), price: String(i.unit_price_cents / factor) })) : [emptyLine()]
+    quote ? quote.items.map((i) => ({ sku: i.sku, qty: String(i.qty), price: String(i.unit_price_cents / factor), title: i.sku === FREE ? i.title : undefined })) : [emptyLine()]
   );
   const [error, setError] = useState<string | null>(null);
   const { data: products } = useQuery({ queryKey: ['quote-products'], queryFn: () => api.getProducts({ limit: 100 }) });
@@ -121,7 +123,8 @@ function QuoteForm({ quote, onClose, onSaved }: { quote: Quote | null; onClose: 
     onError: (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
   });
   function submit() {
-    const items = lines.filter((l) => l.sku).map((l) => ({ sku: l.sku, qty: parseInt(l.qty, 10), unit_price_cents: l.price.trim() !== '' ? toCents(l.price) : undefined }));
+    const items = lines.filter((l) => l.sku).map((l) => ({ sku: l.sku, qty: parseInt(l.qty, 10), unit_price_cents: l.price.trim() !== '' ? toCents(l.price) : undefined, ...(l.sku === FREE ? { title: (l.title ?? '').trim() } : {}) }));
+    if (items.some((i) => i.sku === FREE && (!i.title || i.unit_price_cents === undefined))) { setError(s.invalid); return; }
     if (items.length === 0 || items.some((i) => !Number.isInteger(i.qty) || i.qty <= 0 || (i.unit_price_cents !== undefined && !Number.isFinite(i.unit_price_cents)))) { setError(s.invalid); return; }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError(s.invalid); return; }
     setError(null);
@@ -149,17 +152,20 @@ function QuoteForm({ quote, onClose, onSaved }: { quote: Quote | null; onClose: 
           <div className="space-y-2">
             {lines.map((l, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_auto] md:grid-cols-[1fr_70px_150px_auto] gap-2 items-center pb-3 border-b md:pb-0 md:border-0" style={{ borderColor: 'var(--border-subtle)' }}>
-                <select value={l.sku} onChange={(e) => upd(i, { sku: e.target.value })} className={inputCls + ' col-span-3 md:col-span-1'} style={inputStyle} data-testid={`quote-sku-${i}`}>
-                  <option value="">{s.item}</option>
-                  {variants.map((v) => <option key={v.sku} value={v.sku}>{v.label} · {formatPrice(v.price, currency)}</option>)}
-                </select>
+                {l.sku === FREE
+                  ? <input value={l.title ?? ''} placeholder={s.freeDesc} maxLength={200} onChange={(e) => upd(i, { title: e.target.value })} className={inputCls + ' col-span-3 md:col-span-1'} style={inputStyle} data-testid={`quote-free-${i}`} />
+                  : <select value={l.sku} onChange={(e) => upd(i, { sku: e.target.value })} className={inputCls + ' col-span-3 md:col-span-1'} style={inputStyle} data-testid={`quote-sku-${i}`}>
+                      <option value="">{s.item}</option>
+                      {variants.filter((v) => v.sku !== FREE).map((v) => <option key={v.sku} value={v.sku}>{v.label} · {formatPrice(v.price, currency)}</option>)}
+                    </select>}
                 <input inputMode="numeric" value={l.qty} placeholder={s.qty} onChange={(e) => upd(i, { qty: e.target.value })} className={inputCls} style={inputStyle} />
-                <input inputMode="decimal" value={l.price} placeholder={s.price} onChange={(e) => upd(i, { price: e.target.value })} className={inputCls} style={inputStyle} />
+                <input inputMode="decimal" value={l.price} placeholder={l.sku === FREE ? s.freePrice : s.price} onChange={(e) => upd(i, { price: e.target.value })} className={inputCls} style={inputStyle} />
                 <button type="button" aria-label="remove" className="px-2 h-10 w-10 md:h-auto md:w-auto text-sm" style={{ color: 'var(--text-muted)' }} onClick={() => setLines(lines.length > 1 ? lines.filter((_, j) => j !== i) : lines)}>✕</button>
               </div>
             ))}
           </div>
           <button type="button" className="mt-2 text-sm font-medium hover:underline" style={{ color: 'var(--accent)' }} onClick={() => setLines([...lines, emptyLine()])}>+ {s.addItem}</button>
+          <button type="button" className="mt-2 ml-4 text-sm font-medium hover:underline" style={{ color: 'var(--accent)' }} onClick={() => setLines([...lines, freeLine()])} data-testid="quote-add-free">+ {s.addFree}</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3">
           <div><label className={labelCls} style={muted}>{s.days}</label><input inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} className={inputCls} style={inputStyle} /></div>
@@ -191,7 +197,7 @@ function QuoteDetail({ quote: q, canWrite, onClose, onChanged, onEdit }: { quote
     mutationFn: async () => {
       const o = await api.createManualOrder({
         customer_email: q.customer_email ?? undefined, customer_name: q.customer_name ?? undefined, currency: q.currency, locale: q.locale,
-        items: q.items.map((i) => ({ sku: i.sku, qty: i.qty, unit_price_cents: i.unit_price_cents })),
+        items: q.items.map((i) => ({ sku: i.sku, qty: i.qty, unit_price_cents: i.unit_price_cents, title: i.title })),
       });
       await api.quoteConverted(q.id, o.order_id);
       return o;

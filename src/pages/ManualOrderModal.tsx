@@ -13,7 +13,8 @@ import { postalRule, buildPhone } from '../lib/geo';
 const METHODS = ['cash', 'mobile_money', 'bank_transfer', 'card', 'other'] as const;
 const ZERO_DECIMAL = new Set(['XOF', 'GNF', 'JPY', 'KRW', 'VND']);
 
-type Line = { sku: string; qty: string; price: string };
+type Line = { sku: string; qty: string; price: string; title?: string };
+const FREE = 'CUSTOM';                                    // the hidden catalog entry behind every free-hand line
 
 type Props = {
   open: boolean;
@@ -111,7 +112,12 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
         sku: l.sku,
         qty: parseInt(l.qty, 10),
         unit_price_cents: l.price.trim() !== '' ? toCents(l.price) : undefined,
+        ...(l.sku === FREE ? { title: (l.title ?? '').trim() } : {}),
       }));
+    if (items.some((i) => i.sku === FREE && (!i.title || i.unit_price_cents === undefined || !Number.isFinite(i.unit_price_cents)))) {
+      setError(t('orders.manual.freeInvalid'));
+      return;
+    }
     if ((email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) || items.length === 0 || items.some((i) => !Number.isInteger(i.qty) || i.qty <= 0)) {
       setError(t('orders.manual.invalid'));
       return;
@@ -184,6 +190,13 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
           <div className="space-y-2">
             {lines.map((l, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_auto] md:grid-cols-[1fr_70px_130px_auto] gap-2 items-center pb-3 border-b md:pb-0 md:border-0" style={{ borderColor: 'var(--border-subtle)' }}>
+                {l.sku === FREE ? (
+                  <input
+                    type="text" value={l.title ?? ''} maxLength={200} placeholder={t('orders.manual.freeDesc')} data-testid={`manual-free-${i}`}
+                    onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+                    className={inputCls + ' col-span-3 md:col-span-1'} style={inputStyle}
+                  />
+                ) : (
                 <select
                   value={l.sku}
                   onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, sku: e.target.value } : x)))}
@@ -191,10 +204,11 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
                   style={inputStyle}
                 >
                   <option value="">{t('orders.manual.item')}</option>
-                  {variants.map((v) => (
+                  {variants.filter((v) => v.sku !== FREE).map((v) => (
                     <option key={v.sku} value={v.sku}>{v.label} · {formatPrice(v.price, currency)}</option>
                   ))}
                 </select>
+                )}
                 <input
                   type="text" inputMode="numeric" value={l.qty} placeholder={t('orders.manual.qty')}
                   onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))}
@@ -224,6 +238,15 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
             style={{ color: 'var(--accent)' }}
           >
             + {t('orders.manual.addItem')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLines([...lines, { sku: FREE, qty: '1', price: '', title: '' }])}
+            className="mt-2 ml-4 text-sm font-medium hover:underline"
+            style={{ color: 'var(--accent)' }}
+            data-testid="manual-add-free"
+          >
+            + {t('orders.manual.addFree')}
           </button>
           <p className="mt-2 font-mono text-sm text-right">
             {deliveryCents > 0 && <span className="block text-xs" style={muted}>{t('orders.manual.delivery')}: {formatPrice(deliveryCents, currency)}</span>}

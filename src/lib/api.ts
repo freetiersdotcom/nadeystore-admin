@@ -150,7 +150,7 @@ export type CostItem = { sku: string; product_title: string; variant_title: stri
 export type ProfitCurrency = { currency: string; orders: number; revenue_cents: number; shipping_cents: number; refunded_cents: number; known_orders: number; unknown_orders: number; known_revenue_cents: number; cost_cents: number; fees_cents: number; margin_cents: number; coverage_pct: number; margin_pct: number | null };
 export type ProfitReport = { from: string; to: string; truncated: boolean; currencies: ProfitCurrency[]; by_product: { currency: string; sku: string; title: string; units: number; revenue_cents: number; cost_cents: number; margin_cents: number }[]; by_day: { day: string; currency: string; revenue_cents: number; margin_cents: number }[]; fees: Record<string, number> };
 export type ShopProfile = { name: string; address: string; phone: string; email: string; tax_id: string; footer_fr: string; footer_en: string; paper: 'ticket' | 'a4' };
-export type OrderProfit = { currency: string; revenue_cents: number; refunded_cents: number; discount_cents: number; cost_cents: number | null; fees_cents: number | null; margin_cents: number | null; margin_pct: number | null; complete: boolean; lines: { sku: string; title: string; qty: number; unit_price_cents: number; cost_cents: number | null }[] };
+export type OrderProfit = { currency: string; revenue_cents: number; refunded_cents: number; discount_cents: number; cost_cents: number | null; fees_cents: number | null; margin_cents: number | null; margin_pct: number | null; complete: boolean; lines: { id: string; sku: string; title: string; qty: number; unit_price_cents: number; cost_cents: number | null }[] };
 export type CostImportReport = { ok: boolean; problems: { line: number; message: string }[]; updated: number; to_update?: number };
 export type LaunchCheck = { id: string; ok: boolean; must: boolean; count?: number; sample?: string[] };
 export type LaunchManual = { id: string; must: boolean; done: boolean; at: string | null; by: string | null };
@@ -628,7 +628,7 @@ export type Quote = {
 };
 export type QuoteInput = {
   customer_name?: string; customer_email?: string; customer_phone?: string; note?: string; locale?: 'fr' | 'en';
-  items: Array<{ sku: string; qty: number; unit_price_cents?: number }>; valid_days?: number;
+  items: Array<{ sku: string; qty: number; unit_price_cents?: number; title?: string }>; valid_days?: number;
 };
 
 export type VoucherPlan = { sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
@@ -826,7 +826,7 @@ export const api = {
     customer_name?: string;
     currency?: string;
     address?: { line1: string; city: string; postal_code?: string; phone?: string; country: string };
-    items: Array<{ sku: string; qty: number; unit_price_cents?: number }>;
+    items: Array<{ sku: string; qty: number; unit_price_cents?: number; title?: string }>;
     payment?: { amount_cents: number; method: string };
   }) {
     return request<{
@@ -1401,6 +1401,7 @@ export const api = {
   getProfit(from: string, to: string) { return request<ProfitReport>(`/v1/profit?from=${from}&to=${to}`); },
   getShopProfile() { return request<ShopProfile>('/v1/shop-profile'); },
   saveShopProfile(b: ShopProfile) { return request<ShopProfile>('/v1/shop-profile', { method: 'PUT', body: JSON.stringify(b) }); },
+  setOrderLineCost(lineId: string, cost_cents: number | null) { return request<{ id: string; cost_cents: number | null }>(`/v1/profit/order-line/${encodeURIComponent(lineId)}`, { method: 'PUT', body: JSON.stringify({ cost_cents }) }); },
   getOrderProfit(id: string) { return request<OrderProfit>(`/v1/profit/order/${encodeURIComponent(id)}`); },
   getProfitFees() { return request<{ fees: Record<string, number>; methods: string[] }>('/v1/profit/fees'); },
   saveProfitFees(fees: Record<string, number>) { return request<{ fees: Record<string, number> }>('/v1/profit/fees', { method: 'PUT', body: JSON.stringify({ fees }) }); },
