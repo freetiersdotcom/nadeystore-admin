@@ -656,6 +656,17 @@ export type AdsPixels = { meta: AdsPixel; tiktok: AdsPixel };
 export type AdsPixelsInput = { pixel_id: string; test_code: string; access_token?: string | null };
 export type AdsEvent = { order_id: string; number: string | null; platform: 'meta' | 'tiktok'; status: 'sent' | 'failed'; tries: number; detail: string | null; updated_at: string };
 
+export type SubPlan = { id: string; sku: string; name: string; unit: 'week' | 'month'; every_n: number; price_cents: number; max_cycles: number | null; active: number; currency: string | null; variant_title: string | null; product_title: string | null; subscribers: number; active_subscribers: number };
+export type SubPlanInput = { sku: string; name: string; unit: 'week' | 'month'; every_n: number; price_cents: number; max_cycles: number | null; active?: boolean };
+export type SubRow = {
+  id: string; plan_id: string | null; sku: string; title: string; qty: number; unit_price_cents: number; currency: string; email: string; name: string | null; phone: string | null; locale: string;
+  status: 'active' | 'paused' | 'canceled' | 'ended'; pause_reason: string | null; unit: 'week' | 'month'; every_n: number; max_cycles: number | null; billed: number; cycles_done: number; next_due_at: string;
+  waiting_stock: number; note: string | null; manage_url: string | null; last_order_number?: string | null; open_order_id?: string | null; ship_to: any;
+};
+export type SubOrder = { order_id: string; cycle: number; due_at: string; counted: number; closed: string | null; number: string | null; status: string | null; total_cents: number | null; amount_paid_cents: number | null; currency: string | null };
+export type SubNew = { plan_id: string; email: string; name?: string; phone?: string; qty: number; locale: 'fr' | 'en'; start_date?: string; note?: string; address?: { line1: string; city: string; country: string; phone?: string } };
+export type SubSettings = { lead_days: number; remind_days: number; grace_days: number };
+
 export type LowStockOverview = { settings: LowStockSettings; suppliers: LowStockSupplier[]; items: LowStockItem[] };
 export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
 export type Affiliate = {
@@ -681,6 +692,18 @@ export const api = {
   async saveAdsPixels(b: { meta?: AdsPixelsInput; tiktok?: AdsPixelsInput }) { return request<AdsPixels>('/v1/m/ads/pixels', { method: 'PUT', body: JSON.stringify(b) }); },
   async testAdsPixel(platform: 'meta' | 'tiktok') { return request<{ ok: boolean; status: number; detail: string }>('/v1/m/ads/pixels/test', { method: 'POST', body: JSON.stringify({ platform }) }); },
   async getAdsEvents() { return request<{ items: AdsEvent[] }>('/v1/m/ads/events'); },
+  async getSubPlans() { return request<{ items: SubPlan[] }>('/v1/m/subs/plans'); },
+  async createSubPlan(b: SubPlanInput) { return request<{ id: string }>('/v1/m/subs/plans', { method: 'POST', body: JSON.stringify(b) }); },
+  async updateSubPlan(id: string, b: SubPlanInput) { return request<{ ok: boolean }>(`/v1/m/subs/plans/${id}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async deleteSubPlan(id: string) { return request<{ ok: boolean }>(`/v1/m/subs/plans/${id}`, { method: 'DELETE' }); },
+  async getSubs(status?: string, q?: string) { const p = new URLSearchParams(); if (status) p.set('status', status); if (q) p.set('q', q); return request<{ items: SubRow[]; totals: Record<string, number> }>(`/v1/m/subs/subs${p.toString() ? `?${p}` : ''}`); },
+  async getSub(id: string) { return request<SubRow & { orders: SubOrder[] }>(`/v1/m/subs/subs/${id}`); },
+  async addSub(b: SubNew) { return request<{ id: string }>('/v1/m/subs/subs', { method: 'POST', body: JSON.stringify(b) }); },
+  async updateSub(id: string, b: { qty?: number; unit_price_cents?: number; note?: string | null }) { return request<{ ok: boolean }>(`/v1/m/subs/subs/${id}`, { method: 'PATCH', body: JSON.stringify(b) }); },
+  async subAction(id: string, action: 'pause' | 'resume' | 'skip' | 'cancel') { return request<{ ok: boolean }>(`/v1/m/subs/subs/${id}/action`, { method: 'POST', body: JSON.stringify({ action }) }); },
+  async renewSub(id: string) { return request<{ order_id: string }>(`/v1/m/subs/subs/${id}/renew-now`, { method: 'POST', body: '{}' }); },
+  async getSubSettings() { return request<SubSettings>('/v1/m/subs/settings'); },
+  async saveSubSettings(b: SubSettings) { return request<SubSettings>('/v1/m/subs/settings', { method: 'PUT', body: JSON.stringify(b) }); },
   async getModules() { return request<{ items: ModuleInfo[] }>('/v1/modules'); },
   async setModule(id: string, enabled: boolean) { return request<{ id: string; enabled: boolean }>(`/v1/modules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) }); },
   // Quotations module

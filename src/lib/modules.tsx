@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { FileText, Share2, Wifi, ShoppingCart, PackageMinus, Megaphone, type LucideIcon } from 'lucide-react';
+import { FileText, Share2, Wifi, ShoppingCart, PackageMinus, Megaphone, Repeat, type LucideIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 import { useLocale } from './locale-context';
@@ -9,6 +9,7 @@ import { Vouchers } from '../pages/modules/Vouchers';
 import { Recovery } from '../pages/modules/Recovery';
 import { LowStock } from '../pages/modules/LowStock';
 import { Ads } from '../pages/modules/Ads';
+import { Subs } from '../pages/modules/Subs';
 
 /**
  * Admin side of the optional modules. The API decides which modules exist and are on
@@ -22,6 +23,7 @@ export const MODULE_UI: Record<string, { icon: LucideIcon; Page: ComponentType<{
   recovery: { icon: ShoppingCart, Page: Recovery },
   lowstock: { icon: PackageMinus, Page: LowStock },
   ads: { icon: Megaphone, Page: Ads },
+  subs: { icon: Repeat, Page: Subs },
 };
 
 export function ModulePage({ id }: { id: string }) {
