@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, type AdsRow } from '../../lib/api';
+import { api, type AdsRow, type AdsPixel } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
 import { STORE_CURRENCY } from '../../lib/store';
 import { useLocale } from '../../lib/locale-context';
@@ -9,7 +9,7 @@ const S = {
   en: {
     title: 'Ad tracking',
     help: 'Shows which campaign brought each order, what it earned after the cost of the goods, and what you spent on it. A visitor is only tracked after accepting measurement cookies on the shop, so some orders will show as direct.',
-    tabs: { report: 'Report', spend: 'Ad spend', links: 'Tracking links' },
+    tabs: { report: 'Report', spend: 'Ad spend', links: 'Tracking links', pixels: 'Pixels' },
     from: 'From', to: 'To', d7: '7 days', d30: '30 days', d90: '90 days',
     campaign: 'Campaign', source: 'Source', orders: 'Orders', revenue: 'Sales', profit: 'Profit', spend: 'Spend', roas: 'Sales per 1 spent', after: 'Profit after spend',
     totals: 'Total', attributed: 'Brought by campaigns', share: 'of sales', none: 'No paid orders in this period.', coverage: 'Profit counts only orders whose items all have a cost: coverage', unknown: '—',
@@ -17,12 +17,15 @@ const S = {
     spendHelp: 'Type what you paid the platform, with the campaign name exactly as in the link (the utm_campaign). A payment covering several days is spread evenly over them.',
     platform: 'Platform', amount: 'Amount', currency: 'Currency', note: 'Note', add: 'Add', remove: 'Remove', period: 'Period', saved: 'Saved.', invalid: 'Check the amount and the dates.', empty: 'No ad spend entered yet.',
     linksHelp: 'Paste the result as the destination link of your ad. Meta and TikTok add their own click id automatically, so tracking works even without these parameters, but named campaigns make the report readable.',
+    pixelsHelp: 'Optional. With a pixel id and an access token, each paid order that came from a campaign is also sent to the platform from the server, so ad blockers cannot hide your sales. Only visitors who accepted cookies are ever sent, and only their hashed e-mail and phone. Leave empty to keep it off.',
+    pixelId: 'Pixel id', token: 'Access token', tokenSet: 'A token is saved. Leave this empty to keep it.', tokenNone: 'Paste the token from the platform’s Events Manager.', removeToken: 'Remove the token', testCode: 'Test event code', testHelp: 'From the platform’s test-events screen. Used only by the test button and while it is filled in: events then show as tests, not as real sales. Empty it when you go live.',
+    save: 'Save', sendTest: 'Send a test event', on: 'Active', off: 'Off (needs a pixel id and a token)', sentFailed: 'sent / failed', recent: 'Latest deliveries', noEvents: 'Nothing sent yet.', order: 'Order', tries: 'tries', ok: 'sent', ko: 'failed',
     page: 'Page address', pagePh: 'https://your-shop.com/fr/', name: 'Campaign name', namePh: 'black-friday', content: 'Ad / creative (optional)', result: 'Your link', copy: 'Copy', copied: 'Copied.',
   },
   fr: {
     title: 'Suivi des publicités',
     help: 'Montre quelle campagne a amené chaque commande, ce qu’elle a rapporté après le coût des marchandises, et ce que vous y avez dépensé. Un visiteur n’est suivi qu’après avoir accepté les cookies de mesure sur la boutique : certaines commandes apparaîtront donc comme directes.',
-    tabs: { report: 'Rapport', spend: 'Dépenses pub', links: 'Liens de suivi' },
+    tabs: { report: 'Rapport', spend: 'Dépenses pub', links: 'Liens de suivi', pixels: 'Pixels' },
     from: 'Du', to: 'Au', d7: '7 jours', d30: '30 jours', d90: '90 jours',
     campaign: 'Campagne', source: 'Source', orders: 'Commandes', revenue: 'Ventes', profit: 'Bénéfice', spend: 'Dépenses', roas: 'Ventes pour 1 dépensé', after: 'Bénéfice après dépenses',
     totals: 'Total', attributed: 'Amené par des campagnes', share: 'des ventes', none: 'Aucune commande payée sur cette période.', coverage: 'Le bénéfice ne compte que les commandes dont tous les articles ont un coût : couverture', unknown: '—',
@@ -30,6 +33,9 @@ const S = {
     spendHelp: 'Saisissez ce que vous avez payé à la plateforme, avec le nom de campagne exactement comme dans le lien (utm_campaign). Un paiement couvrant plusieurs jours est réparti à parts égales.',
     platform: 'Plateforme', amount: 'Montant', currency: 'Devise', note: 'Note', add: 'Ajouter', remove: 'Retirer', period: 'Période', saved: 'Enregistré.', invalid: 'Vérifiez le montant et les dates.', empty: 'Aucune dépense saisie pour le moment.',
     linksHelp: 'Collez le résultat comme lien de destination de votre publicité. Meta et TikTok ajoutent eux-mêmes leur identifiant de clic, donc le suivi marche même sans ces paramètres, mais des campagnes nommées rendent le rapport lisible.',
+    pixelsHelp: 'Facultatif. Avec un identifiant de pixel et un jeton d’accès, chaque commande payée venue d’une campagne est aussi envoyée à la plateforme depuis le serveur : les bloqueurs de publicité ne cachent plus vos ventes. Seuls les visiteurs ayant accepté les cookies sont envoyés, avec leur e-mail et téléphone hachés. Laissez vide pour désactiver.',
+    pixelId: 'Identifiant du pixel', token: 'Jeton d’accès', tokenSet: 'Un jeton est enregistré. Laissez vide pour le garder.', tokenNone: 'Collez le jeton du gestionnaire d’événements de la plateforme.', removeToken: 'Supprimer le jeton', testCode: 'Code d’événement de test', testHelp: 'Depuis l’écran de test de la plateforme. Utilisé seulement par le bouton de test et tant qu’il est rempli : les événements apparaissent alors comme des tests, pas comme de vraies ventes. Videz-le au lancement.',
+    save: 'Enregistrer', sendTest: 'Envoyer un événement de test', on: 'Actif', off: 'Désactivé (il faut un identifiant et un jeton)', sentFailed: 'envoyés / échecs', recent: 'Derniers envois', noEvents: 'Rien d’envoyé pour le moment.', order: 'Commande', tries: 'essais', ok: 'envoyé', ko: 'échec',
     page: 'Adresse de la page', pagePh: 'https://votre-boutique.com/fr/', name: 'Nom de la campagne', namePh: 'black-friday', content: 'Annonce / visuel (facultatif)', result: 'Votre lien', copy: 'Copier', copied: 'Copié.',
   },
 };
@@ -59,7 +65,7 @@ const th = 'px-3 py-2 text-left text-xs font-medium uppercase tracking-wide';
 
 export function Ads({ canWrite }: { canWrite: boolean }) {
   const { locale } = useLocale(); const s = S[locale === 'en' ? 'en' : 'fr'];
-  const [tab, setTab] = useState<'report' | 'spend' | 'links'>('report');
+  const [tab, setTab] = useState<'report' | 'spend' | 'links' | 'pixels'>('report');
   return (
     <div className="space-y-5" data-testid="ads-page">
       <div>
@@ -67,13 +73,14 @@ export function Ads({ canWrite }: { canWrite: boolean }) {
         <p className="text-xs" style={muted}>{s.help}</p>
       </div>
       <div className="flex gap-2 flex-wrap">
-        {(['report', 'spend', 'links'] as const).map((k) => (
+        {(['report', 'spend', 'links', 'pixels'] as const).map((k) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={btn} style={tab === k ? solid : ghost} data-testid={`ads-tab-${k}`}>{s.tabs[k]}</button>
         ))}
       </div>
       {tab === 'report' && <Report s={s} />}
       {tab === 'spend' && <Spend s={s} canWrite={canWrite} />}
       {tab === 'links' && <Links s={s} />}
+      {tab === 'pixels' && <Pixels s={s} canWrite={canWrite} />}
     </div>
   );
 }
@@ -205,6 +212,67 @@ function Links({ s }: { s: (typeof S)['en'] }) {
           <button type="button" className={btn} style={ghost} onClick={copy}>{copied ? s.copied : s.copy}</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function PixelCard({ s, name, platform, v, canWrite }: { s: (typeof S)['en']; name: string; platform: 'meta' | 'tiktok'; v: AdsPixel; canWrite: boolean }) {
+  const qc = useQueryClient();
+  const [id, setId] = useState(v.pixel_id); const [code, setCode] = useState(v.test_code); const [token, setToken] = useState('');
+  const [msg, setMsg] = useState(''); const [testMsg, setTestMsg] = useState('');
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['ads-pixels'] }); qc.invalidateQueries({ queryKey: ['ads-events'] }); };
+  const save = useMutation({
+    mutationFn: (clear: boolean) => api.saveAdsPixels({ [platform]: { pixel_id: id.trim(), test_code: code.trim(), ...(clear ? { access_token: null } : token.trim() ? { access_token: token.trim() } : {}) } }),
+    onSuccess: () => { setToken(''); setMsg(s.saved); refresh(); }, onError: (e: any) => setMsg(e.message),
+  });
+  const test = useMutation({
+    mutationFn: () => api.testAdsPixel(platform),
+    onSuccess: (r) => { setTestMsg(r.ok ? s.ok : `${s.ko}: ${r.detail}`); refresh(); }, onError: (e: any) => setTestMsg(e.message),
+  });
+  return (
+    <div className="p-4 space-y-3 rounded-lg" style={box} data-testid={`ads-pixel-${platform}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{name}</h2>
+        <span className="text-xs" style={{ color: v.active ? '#16a34a' : 'var(--text-secondary)' }}>{v.active ? s.on : s.off} · {s.sentFailed}: {v.sent} / {v.failed}</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm"><span className={labelCls} style={muted}>{s.pixelId}</span><input value={id} disabled={!canWrite} onChange={(e) => setId(e.target.value)} className={inputCls} style={inputStyle} data-testid={`ads-pixel-id-${platform}`} /></label>
+        <label className="text-sm"><span className={labelCls} style={muted}>{s.testCode}</span><input value={code} disabled={!canWrite} onChange={(e) => setCode(e.target.value)} className={inputCls} style={inputStyle} /></label>
+        <label className="text-sm sm:col-span-2"><span className={labelCls} style={muted}>{s.token}</span>
+          <input type="password" autoComplete="off" value={token} disabled={!canWrite} onChange={(e) => setToken(e.target.value)} placeholder={v.token_set ? '••••••••' : ''} className={inputCls} style={inputStyle} data-testid={`ads-pixel-token-${platform}`} />
+          <span className="text-xs" style={muted}>{v.token_set ? s.tokenSet : s.tokenNone}</span></label>
+      </div>
+      <p className="text-xs" style={muted}>{s.testHelp}</p>
+      {canWrite && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={btn} style={solid} disabled={save.isPending} onClick={() => save.mutate(false)} data-testid={`ads-pixel-save-${platform}`}>{s.save}</button>
+          <button type="button" className={btn} style={ghost} disabled={test.isPending || !v.active || !v.test_code} onClick={() => test.mutate()}>{s.sendTest}</button>
+          {v.token_set && <button type="button" className={btn} style={ghost} disabled={save.isPending} onClick={() => save.mutate(true)}>{s.removeToken}</button>}
+          {(msg || testMsg) && <span className="text-xs" role="status" style={muted}>{testMsg || msg}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pixels({ s, canWrite }: { s: (typeof S)['en']; canWrite: boolean }) {
+  const { data } = useQuery({ queryKey: ['ads-pixels'], queryFn: () => api.getAdsPixels() });
+  const events = useQuery({ queryKey: ['ads-events'], queryFn: () => api.getAdsEvents() });
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <p className="text-xs" style={muted}>{s.pixelsHelp}</p>
+      {data && <PixelCard key={`m-${data.meta.pixel_id}-${data.meta.test_code}`} s={s} name="Meta (Facebook / Instagram)" platform="meta" v={data.meta} canWrite={canWrite} />}
+      {data && <PixelCard key={`t-${data.tiktok.pixel_id}-${data.tiktok.test_code}`} s={s} name="TikTok" platform="tiktok" v={data.tiktok} canWrite={canWrite} />}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{s.recent}</h2>
+        {events.data && events.data.items.length === 0 && <p className="text-sm" style={muted}>{s.noEvents}</p>}
+        <ul className="space-y-1">
+          {events.data?.items.map((e) => (
+            <li key={`${e.order_id}-${e.platform}`} className="text-xs flex flex-wrap gap-x-3" style={{ color: e.status === 'sent' ? 'var(--text)' : '#dc2626' }}>
+              <span>{s.order} {e.number ?? e.order_id.slice(0, 8)}</span><span>{e.platform}</span><span>{e.status === 'sent' ? s.ok : s.ko} ({e.tries} {s.tries})</span>{e.detail && <span>{e.detail}</span>}
+            </li>))}
+        </ul>
+      </div>
     </div>
   );
 }

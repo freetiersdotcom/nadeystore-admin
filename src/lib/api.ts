@@ -651,6 +651,11 @@ export type AdsReport = { from: string; to: string; truncated: boolean; currenci
 export type AdSpend = { id: string; platform: string; campaign: string; from_day: string; to_day: string; amount_cents: number; currency: string; note: string | null };
 export type AdsAttribution = { source: string; medium: string; campaign: string; content: string; term: string; click_id_type: string; landing: string; referrer: string };
 
+export type AdsPixel = { pixel_id: string; test_code: string; token_set: boolean; active: boolean; sent: number; failed: number };
+export type AdsPixels = { meta: AdsPixel; tiktok: AdsPixel };
+export type AdsPixelsInput = { pixel_id: string; test_code: string; access_token?: string | null };
+export type AdsEvent = { order_id: string; number: string | null; platform: 'meta' | 'tiktok'; status: 'sent' | 'failed'; tries: number; detail: string | null; updated_at: string };
+
 export type LowStockOverview = { settings: LowStockSettings; suppliers: LowStockSupplier[]; items: LowStockItem[] };
 export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
 export type Affiliate = {
@@ -672,6 +677,10 @@ export const api = {
   async addAdsSpend(b: { platform: string; campaign: string; from_day: string; to_day: string; amount_cents: number; currency: string; note?: string | null }) { return request<AdSpend>('/v1/m/ads/spend', { method: 'POST', body: JSON.stringify(b) }); },
   async deleteAdsSpend(id: string) { return request<{ deleted: true }>(`/v1/m/ads/spend/${id}`, { method: 'DELETE' }); },
   async getAdsOrder(id: string) { return request<{ attribution: AdsAttribution | null }>(`/v1/m/ads/order/${id}`); },
+  async getAdsPixels() { return request<AdsPixels>('/v1/m/ads/pixels'); },
+  async saveAdsPixels(b: { meta?: AdsPixelsInput; tiktok?: AdsPixelsInput }) { return request<AdsPixels>('/v1/m/ads/pixels', { method: 'PUT', body: JSON.stringify(b) }); },
+  async testAdsPixel(platform: 'meta' | 'tiktok') { return request<{ ok: boolean; status: number; detail: string }>('/v1/m/ads/pixels/test', { method: 'POST', body: JSON.stringify({ platform }) }); },
+  async getAdsEvents() { return request<{ items: AdsEvent[] }>('/v1/m/ads/events'); },
   async getModules() { return request<{ items: ModuleInfo[] }>('/v1/modules'); },
   async setModule(id: string, enabled: boolean) { return request<{ id: string; enabled: boolean }>(`/v1/modules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) }); },
   // Quotations module
