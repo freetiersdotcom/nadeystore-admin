@@ -667,6 +667,12 @@ export type SubOrder = { order_id: string; cycle: number; due_at: string; counte
 export type SubNew = { plan_id: string; email: string; name?: string; phone?: string; qty: number; locale: 'fr' | 'en'; start_date?: string; note?: string; address?: { line1: string; city: string; country: string; phone?: string } };
 export type SubSettings = { lead_days: number; remind_days: number; grace_days: number };
 
+export type MsStage = { id: string; pos: number; label: string; amount_cents: number; expected_on: string | null; requested_at: string | null; status: 'paid' | 'due' | 'upcoming'; paid_cents: number; remaining_cents: number };
+export type MsView = { order_id: string; order_number: string; status: string; currency: string; total_cents: number; paid_cents: number; note: string | null; stages: MsStage[]; due_now_cents: number; next_pos: number | null; customer_email: string; customer_name: string | null; pay_url: string };
+export type MsRow = { order_id: string; number: string; customer_email: string; shipping_name: string | null; status: string; currency: string; total_cents: number; paid_cents: number; stages: number; stages_paid: number; next: { pos: number; label: string; status: string; remaining_cents: number } | null };
+export type MsCandidate = { id: string; number: string; customer_email: string; shipping_name: string | null; currency: string; total_cents: number; paid_cents: number };
+export type MsStageInput = { label: string; amount_cents?: number; percent?: number; expected_on?: string | null };
+
 export type LowStockOverview = { settings: LowStockSettings; suppliers: LowStockSupplier[]; items: LowStockItem[] };
 export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
 export type Affiliate = {
@@ -704,6 +710,12 @@ export const api = {
   async renewSub(id: string) { return request<{ order_id: string }>(`/v1/m/subs/subs/${id}/renew-now`, { method: 'POST', body: '{}' }); },
   async getSubSettings() { return request<SubSettings>('/v1/m/subs/settings'); },
   async saveSubSettings(b: SubSettings) { return request<SubSettings>('/v1/m/subs/settings', { method: 'PUT', body: JSON.stringify(b) }); },
+  async getMilestones(q?: string) { return request<{ items: MsRow[] }>(`/v1/m/milestones${q ? `?q=${encodeURIComponent(q)}` : ''}`); },
+  async getMilestoneCandidates(q?: string) { return request<{ items: MsCandidate[] }>(`/v1/m/milestones/candidates${q ? `?q=${encodeURIComponent(q)}` : ''}`); },
+  async getMilestone(orderId: string) { return request<MsView>(`/v1/m/milestones/order/${orderId}`); },
+  async saveMilestone(orderId: string, b: { stages: MsStageInput[]; note?: string | null }) { return request<{ ok: boolean; created: boolean; notified: boolean }>(`/v1/m/milestones/order/${orderId}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async deleteMilestone(orderId: string) { return request<{ ok: boolean }>(`/v1/m/milestones/order/${orderId}`, { method: 'DELETE' }); },
+  async requestMilestone(orderId: string, send = true) { return request<{ pos: number; amount_cents: number; pay_url: string; emailed: boolean }>(`/v1/m/milestones/order/${orderId}/request`, { method: 'POST', body: JSON.stringify({ send }) }); },
   async getModules() { return request<{ items: ModuleInfo[] }>('/v1/modules'); },
   async setModule(id: string, enabled: boolean) { return request<{ id: string; enabled: boolean }>(`/v1/modules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) }); },
   // Quotations module
