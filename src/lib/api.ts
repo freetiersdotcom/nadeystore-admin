@@ -646,6 +646,11 @@ export type RecoveryOverview = { settings: RecoverySettings; has_email: boolean;
 export type LowStockSettings = { default_threshold: number; emails: string; push: number };
 export type LowStockSupplier = { id: string; name: string; phone: string | null; email: string | null; note: string | null };
 export type LowStockItem = { sku: string; product_title: string; variant_title: string; available: number; on_hand: number; reserved: number; threshold: number; muted: number; supplier_id: string | null; reorder_qty: number | null; level: 'ok' | 'low' | 'out'; alerted: boolean };
+export type AdsRow = { key: string; campaign: string; source: string; medium: string; orders: number; revenue_cents: number; known_orders: number; known_revenue_cents: number; margin_cents: number; coverage_pct: number; spend_cents: number; roas: number | null; net_cents: number | null };
+export type AdsReport = { from: string; to: string; truncated: boolean; currencies: Array<{ currency: string; rows: AdsRow[]; totals: { orders: number; revenue_cents: number; spend_cents: number; margin_cents: number; attributed_orders: number; attributed_revenue_cents: number; roas: number | null } }> };
+export type AdSpend = { id: string; platform: string; campaign: string; from_day: string; to_day: string; amount_cents: number; currency: string; note: string | null };
+export type AdsAttribution = { source: string; medium: string; campaign: string; content: string; term: string; click_id_type: string; landing: string; referrer: string };
+
 export type LowStockOverview = { settings: LowStockSettings; suppliers: LowStockSupplier[]; items: LowStockItem[] };
 export type AffiliateTotals = { currency: string; available_cents: number; pending_cents: number; paid_out_cents: number; balance_cents: number; canceled_count: number; orders: number };
 export type Affiliate = {
@@ -662,6 +667,11 @@ export type BackupList = { configured: boolean; backups: Array<{ name: string; s
 
 export const api = {
   // Optional modules
+  async getAdsReport(from: string, to: string) { return request<AdsReport>(`/v1/m/ads/report?from=${from}&to=${to}`); },
+  async getAdsSpend() { return request<{ items: AdSpend[] }>('/v1/m/ads/spend'); },
+  async addAdsSpend(b: { platform: string; campaign: string; from_day: string; to_day: string; amount_cents: number; currency: string; note?: string | null }) { return request<AdSpend>('/v1/m/ads/spend', { method: 'POST', body: JSON.stringify(b) }); },
+  async deleteAdsSpend(id: string) { return request<{ deleted: true }>(`/v1/m/ads/spend/${id}`, { method: 'DELETE' }); },
+  async getAdsOrder(id: string) { return request<{ attribution: AdsAttribution | null }>(`/v1/m/ads/order/${id}`); },
   async getModules() { return request<{ items: ModuleInfo[] }>('/v1/modules'); },
   async setModule(id: string, enabled: boolean) { return request<{ id: string; enabled: boolean }>(`/v1/modules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) }); },
   // Quotations module

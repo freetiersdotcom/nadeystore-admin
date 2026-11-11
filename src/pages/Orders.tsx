@@ -28,6 +28,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { OrdersExport } from '../components/DataTransfer';
 import { Modal } from '../components/Modal';
 import { OrderProfit } from './OrderProfit';
+import { OrderSource } from './OrderSource';
 import { ReceiptButton } from './Receipt';
 import { PaymentPanel } from './PaymentPanel';
 import { ManualOrderModal } from './ManualOrderModal';
@@ -482,6 +483,7 @@ export function Orders({ canCosts = false, canShop = false }: { canCosts?: boole
 
             <div><ReceiptButton key={`receipt-${selectedOrder.id}`} order={selectedOrder} canEditShop={canShop} /></div>
 
+            {canCosts && <OrderSource key={`src-${selectedOrder.id}`} orderId={selectedOrder.id} />}
             {canCosts && <OrderProfit key={`profit-${selectedOrder.id}`} orderId={selectedOrder.id} />}
 
             {/* Payments: balance, history, record a payment */}
