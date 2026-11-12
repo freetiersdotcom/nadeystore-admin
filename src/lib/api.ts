@@ -638,7 +638,7 @@ export type QuoteInput = {
 };
 
 export type VoucherPlan = { sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
-export type VoucherLoadReport = { lines: number; to_add: number; added: number; ok: boolean; problems: { line: number; text: string; reason: string }[] };
+export type VoucherLoadReport = { lines: number; to_add: number; added: number; ok: boolean; problems: { line: number; text: string; reason: string }[]; /** codes per Mikhmon profile, when the file has a Profile column */ profiles?: Record<string, number>; profile?: string; batch?: string };
 export type VoucherDelivery = { order_id: string; number: string; created_at: string; order_status: string; customer_email: string; customer_phone: string | null; emailed: boolean; has_link?: boolean; link?: string | null; items: { sku: string; title: string; qty: number; waiting: number; codes: { seq: number; username: string; password: string }[] }[] };
 export type RecoverySettings = { origin: string | null; step1_hours: number; step2_hours: number; discount_code: string | null; cooldown_days: number; max_age_days: number };
 export type RecoveryItem = { cart_id: string; email: string; total_cents: number; currency: string; cart_at: string; step: number; last_sent_at: string | null; resumed: boolean; state: 'waiting' | 'reminded' | 'recovered' | 'optout' | 'closed'; closed: string | null; items: { sku: string; title: string; qty: number; unit_price_cents: number }[] };
@@ -750,7 +750,7 @@ export const api = {
   async saveVoucherPlan(sku: string, b: { instructions_fr?: string; instructions_en?: string }) { return request<{ sku: string }>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(b) }); },
   async deleteVoucherPlan(sku: string) { return request<{ deleted: true }>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}`, { method: 'DELETE' }); },
   /** Load codes. A refused list (422) comes back as a report, not an exception, so the screen can show the lines. */
-  async loadVoucherCodes(sku: string, b: { text: string; batch?: string; dry_run?: boolean }): Promise<VoucherLoadReport> {
+  async loadVoucherCodes(sku: string, b: { text: string; batch?: string; dry_run?: boolean; profile?: string }): Promise<VoucherLoadReport> {
     try { return await request<VoucherLoadReport>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}/codes`, { method: 'POST', body: JSON.stringify(b) }); }
     catch (e: any) { if (e?.status === 422 && e?.body?.problems) return e.body as VoucherLoadReport; throw e; }
   },

@@ -12,7 +12,7 @@ const S = {
     empty: 'No voucher product yet. Add one below.', stock: 'In stock', sold: 'Sold', waiting: 'Waiting for a code', low: 'Running low', none: 'Out of stock',
     load: 'Load codes', instr: 'Instructions', remove: 'Remove', confirmRemove: 'Stop selling this product as a code?', newTitle: 'Create a new voucher product', newName: 'Name (e.g. WiFi 1 day)', newPrice: 'Price (smallest unit, e.g. 300 for 300 F)', create: 'Create and sell as a code', createHelp: 'Creates the product (type Digital, no file, no stock, no delivery address) and links it, in one step.', addPlan: 'Add a voucher product', pick: 'Choose a product…', add: 'Add',
     paste: 'Paste the codes, one per line: username or username,password. A header line is fine.', batch: 'Batch name (optional)', check: 'Check', loadNow: 'Load', cancel: 'Cancel', save: 'Save',
-    okCheck: (n: number) => `${n} code(s) ready to load.`, added: (n: number) => `${n} code(s) loaded.`, refused: 'Nothing was loaded. Fix these lines and try again:', line: 'Line',
+    okCheck: (n: number) => `${n} code(s) ready to load.`, added: (n: number) => `${n} code(s) loaded.`, refused: 'Nothing was loaded. Fix these lines and try again:', line: 'Line', file: 'Choose a CSV file (Mikhmon: Users → Export)', fileHelp: 'The Username and Password columns are read; Profile and Comment are used to pick the right codes and name the batch.', profileLabel: 'Profile to load', profilePick: 'Choose…', profileMix: 'This file has several profiles: choose the one this product sells.', profileOne: (p: string) => `Profile in the file: ${p}. Make sure it is the one this product sells.`,
     fr: 'Instructions (French)', en: 'Instructions (English)', instrHelp: 'Shown with the code (e.g. “Connect to WiFi Santé, open any page, enter the code”).',
     sale: 'Counter sale', saleHelp: 'Sell a code in person: it is handed out at once and can be printed or sent by WhatsApp.', qty: 'Quantity', method: 'Paid by', cash: 'Cash', mm: 'Mobile money', sell: 'Sell and show the code',
     phone: 'Customer WhatsApp (optional)', email: 'Customer e-mail (optional)', receipt: 'Receipt', print: 'Print', share: 'Send by WhatsApp', close: 'Close', user: 'Username', pass: 'Password',
@@ -25,7 +25,7 @@ const S = {
     empty: 'Aucun produit voucher pour le moment. Ajoutez-en un ci-dessous.', stock: 'En stock', sold: 'Vendus', waiting: 'En attente de code', low: 'Stock bas', none: 'Rupture',
     load: 'Charger des codes', instr: 'Instructions', remove: 'Retirer', confirmRemove: 'Ne plus vendre ce produit comme un code ?', newTitle: 'Créer un nouveau produit voucher', newName: 'Nom (ex. WiFi 1 jour)', newPrice: 'Prix (plus petite unité, ex. 300 pour 300 F)', create: 'Créer et vendre comme code', createHelp: 'Crée le produit (type Digital, sans fichier, sans stock, sans adresse de livraison) et le relie, en une seule étape.', addPlan: 'Ajouter un produit voucher', pick: 'Choisir un produit…', add: 'Ajouter',
     paste: 'Collez les codes, un par ligne : identifiant ou identifiant,mot de passe. Une ligne d’en-tête est acceptée.', batch: 'Nom du lot (facultatif)', check: 'Vérifier', loadNow: 'Charger', cancel: 'Annuler', save: 'Enregistrer',
-    okCheck: (n: number) => `${n} code(s) prêts à charger.`, added: (n: number) => `${n} code(s) chargés.`, refused: 'Rien n’a été chargé. Corrigez ces lignes puis réessayez :', line: 'Ligne',
+    okCheck: (n: number) => `${n} code(s) prêts à charger.`, added: (n: number) => `${n} code(s) chargés.`, refused: 'Rien n’a été chargé. Corrigez ces lignes puis réessayez :', line: 'Ligne', file: 'Choisir un fichier CSV (Mikhmon : Users → Export)', fileHelp: 'Les colonnes Username et Password sont lues ; Profile et Comment servent à choisir les bons codes et à nommer le lot.', profileLabel: 'Profil à charger', profilePick: 'Choisir…', profileMix: 'Ce fichier contient plusieurs profils : choisissez celui que vend ce produit.', profileOne: (p: string) => `Profil dans le fichier : ${p}. Vérifiez que c’est bien celui que vend ce produit.`,
     fr: 'Instructions (français)', en: 'Instructions (anglais)', instrHelp: 'Affichées avec le code (ex. « Connectez-vous au WiFi Santé, ouvrez une page, saisissez le code »).',
     sale: 'Vente au comptoir', saleHelp: 'Vendez un code en personne : il est remis tout de suite, à imprimer ou envoyer par WhatsApp.', qty: 'Quantité', method: 'Payé par', cash: 'Espèces', mm: 'Mobile money', sell: 'Vendre et afficher le code',
     phone: 'WhatsApp du client (facultatif)', email: 'E-mail du client (facultatif)', receipt: 'Ticket', print: 'Imprimer', share: 'Envoyer par WhatsApp', close: 'Fermer', user: 'Identifiant', pass: 'Mot de passe',
@@ -183,19 +183,31 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
 }
 
 function LoadModal({ plan, s, onClose }: { plan: VoucherPlan; s: typeof S.en; onClose: () => void }) {
-  const [text, setText] = useState(''); const [batch, setBatch] = useState('');
+  const [text, setText] = useState(''); const [batch, setBatch] = useState(''); const [profile, setProfile] = useState('');
   const [rep, setRep] = useState<VoucherLoadReport | null>(null); const [err, setErr] = useState('');
   const run = useMutation({
-    mutationFn: (dry: boolean) => api.loadVoucherCodes(plan.sku, { text, batch: batch || undefined, dry_run: dry }),
-    onSuccess: (r, dry) => { setRep({ ...r, ...(dry ? {} : {}) }); setErr(''); if (!dry && r.ok && r.added > 0) setText(''); },
+    mutationFn: (v: { dry: boolean; text?: string; profile?: string }) => api.loadVoucherCodes(plan.sku, { text: v.text ?? text, batch: batch || undefined, dry_run: v.dry, profile: (v.profile ?? profile) || undefined }),
+    onSuccess: (r, v) => { setRep(r); setErr(''); if (!v.dry && r.ok && r.added > 0) setText(''); },
     onError: (e: any) => setErr(e instanceof ApiError ? e.message : String(e)),
   });
   return (
     <Modal open onClose={onClose} title={`${s.load} — ${plan.sku}`}>
       <div className="space-y-3">
         <p className="text-xs" style={muted}>{s.paste}</p>
-        <textarea className={inputCls} style={{ ...inputStyle, minHeight: 160, fontFamily: 'ui-monospace, monospace' }} value={text} onChange={(e) => { setText(e.target.value); setRep(null); }} data-testid="v-text" />
-        <input className={inputCls} style={inputStyle} placeholder={s.batch} value={batch} onChange={(e) => setBatch(e.target.value)} />
+        <div className="space-y-1">
+          <label className={`${btn} cursor-pointer`} style={ghost}>{s.file}<input type="file" accept=".csv,.txt,text/csv,text/plain" className="hidden" data-testid="v-file" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; const t = await f.text(); setText(t); setProfile(''); setRep(null); run.mutate({ dry: true, text: t, profile: '' }); }} /></label>
+          <p className="text-xs" style={muted}>{s.fileHelp}</p>
+        </div>
+        <textarea className={inputCls} style={{ ...inputStyle, minHeight: 160, fontFamily: 'ui-monospace, monospace' }} value={text} onChange={(e) => { setText(e.target.value); setRep(null); setProfile(''); }} data-testid="v-text" />
+        {rep?.profiles && Object.keys(rep.profiles).length > 0 && (
+          <div className="space-y-1" data-testid="v-profiles">
+            <p className="text-xs" style={muted}>{Object.keys(rep.profiles).length > 1 ? s.profileMix : s.profileOne(Object.keys(rep.profiles)[0])}</p>
+            {Object.keys(rep.profiles).length > 1 && (
+              <select className={inputCls} style={inputStyle} value={profile} aria-label={s.profileLabel} onChange={(e) => { setProfile(e.target.value); run.mutate({ dry: true, profile: e.target.value }); }} data-testid="v-profile">
+                <option value="">{s.profilePick}</option>{Object.entries(rep.profiles).map(([n, c]) => <option key={n} value={n}>{n} ({c})</option>)}
+              </select>)}
+          </div>)}
+        <input className={inputCls} style={inputStyle} placeholder={rep?.batch && !batch ? rep.batch : s.batch} value={batch} onChange={(e) => setBatch(e.target.value)} />
         {err && <p className="text-sm" style={{ color: '#dc2626' }}>{err}</p>}
         {rep && rep.ok && rep.added === 0 && <p className="text-sm" style={{ color: '#16a34a' }} data-testid="v-ok">{s.okCheck(rep.to_add)}</p>}
         {rep && rep.ok && rep.added > 0 && <p className="text-sm" style={{ color: '#16a34a' }} data-testid="v-added">{s.added(rep.added)}</p>}
@@ -207,8 +219,8 @@ function LoadModal({ plan, s, onClose }: { plan: VoucherPlan; s: typeof S.en; on
         )}
         <div className="flex gap-2 justify-end">
           <button className={btn} style={ghost} onClick={onClose}>{s.cancel}</button>
-          <button className={btn} style={ghost} disabled={!text.trim() || run.isPending} onClick={() => run.mutate(true)} data-testid="v-check">{s.check}</button>
-          <button className={btn} style={solid} disabled={!text.trim() || run.isPending} onClick={() => run.mutate(false)} data-testid="v-load">{s.loadNow}</button>
+          <button className={btn} style={ghost} disabled={!text.trim() || run.isPending} onClick={() => run.mutate({ dry: true })} data-testid="v-check">{s.check}</button>
+          <button className={btn} style={solid} disabled={!text.trim() || run.isPending} onClick={() => run.mutate({ dry: false })} data-testid="v-load">{s.loadNow}</button>
         </div>
       </div>
     </Modal>
