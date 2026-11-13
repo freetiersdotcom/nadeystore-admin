@@ -637,7 +637,11 @@ export type QuoteInput = {
   items: Array<{ sku: string; qty: number; unit_price_cents?: number; title?: string }>; valid_days?: number;
 };
 
-export type VoucherPlan = { sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
+export type VoucherBatch = { sku: string; batch: string | null; total: number; available: number; sold: number; void: number; first_at: string };
+export type VoucherBatchResult = { action: string; affected: number; kept_sold: number; dry_run: boolean };
+export type VoucherCode = { seq: number; sku: string; username: string; password: string; status: 'available' | 'sold' | 'void'; batch: string | null; sold_at: string | null; created_at: string; order_number: string | null; order_status: string | null };
+export type VoucherAlertSettings = { default_threshold: number; emails: string; push: number };
+export type VoucherPlan = { threshold?: number | null; level?: 'ok' | 'low' | 'out'; muted?: number; sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
 export type VoucherLoadReport = { lines: number; to_add: number; added: number; ok: boolean; problems: { line: number; text: string; reason: string }[]; /** codes per Mikhmon profile, when the file has a Profile column */ profiles?: Record<string, number>; profile?: string; batch?: string };
 export type VoucherDelivery = { order_id: string; number: string; created_at: string; order_status: string; customer_email: string; customer_phone: string | null; emailed: boolean; has_link?: boolean; link?: string | null; items: { sku: string; title: string; qty: number; waiting: number; codes: { seq: number; username: string; password: string }[] }[] };
 export type RecoverySettings = { origin: string | null; step1_hours: number; step2_hours: number; discount_code: string | null; cooldown_days: number; max_age_days: number };
@@ -754,6 +758,15 @@ export const api = {
     try { return await request<VoucherLoadReport>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}/codes`, { method: 'POST', body: JSON.stringify(b) }); }
     catch (e: any) { if (e?.status === 422 && e?.body?.problems) return e.body as VoucherLoadReport; throw e; }
   },
+  async getVoucherBatches(sku: string) { return request<{ items: VoucherBatch[] }>(`/v1/m/vouchers/batches?sku=${encodeURIComponent(sku)}`); },
+  async voucherBatch(b: { sku: string; batch: string | null; action: 'void' | 'restore' | 'delete' | 'move' | 'rename'; to_sku?: string; new_name?: string; dry_run?: boolean }) { return request<VoucherBatchResult>('/v1/m/vouchers/batches', { method: 'POST', body: JSON.stringify(b) }); },
+  async getVoucherCodes(p: { sku: string; status?: string; q?: string }) { const u = new URLSearchParams({ sku: p.sku, limit: '100' }); if (p.status) u.set('status', p.status); if (p.q) u.set('q', p.q); return request<{ items: VoucherCode[] }>(`/v1/m/vouchers/codes?${u}`); },
+  async voidVoucherCode(seq: number) { return request<{ seq: number; status: string }>(`/v1/m/vouchers/codes/${seq}/void`, { method: 'POST', body: '{}' }); },
+  async restoreVoucherCode(seq: number) { return request<{ seq: number; status: string }>(`/v1/m/vouchers/codes/${seq}/restore`, { method: 'POST', body: '{}' }); },
+  async deleteVoucherCode(seq: number) { return request<{ deleted: true }>(`/v1/m/vouchers/codes/${seq}`, { method: 'DELETE' }); },
+  async getVoucherAlertSettings() { return request<VoucherAlertSettings>('/v1/m/vouchers/alerts/settings'); },
+  async saveVoucherAlertSettings(b: { default_threshold: number; emails: string; push: boolean }) { return request<VoucherAlertSettings>('/v1/m/vouchers/alerts/settings', { method: 'PUT', body: JSON.stringify(b) }); },
+  async saveVoucherPlanAlert(sku: string, b: { threshold: number | null; muted: boolean }) { return request<{ sku: string }>(`/v1/m/vouchers/alerts/plans/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(b) }); },
   async getVoucherOrders() { return request<{ items: VoucherDelivery[] }>('/v1/m/vouchers/orders'); },
   async getVoucherOrder(id: string) { return request<VoucherDelivery>(`/v1/m/vouchers/orders/${id}`); },
   async resendVoucher(id: string) { return request<{ emailed: boolean }>(`/v1/m/vouchers/orders/${id}/resend`, { method: 'POST', body: '{}' }); },

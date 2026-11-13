@@ -12,7 +12,10 @@ const S = {
     empty: 'No voucher product yet. Add one below.', stock: 'In stock', sold: 'Sold', waiting: 'Waiting for a code', low: 'Running low', none: 'Out of stock',
     load: 'Load codes', instr: 'Instructions', remove: 'Remove', confirmRemove: 'Stop selling this product as a code?', newTitle: 'Create a new voucher product', newName: 'Name (e.g. WiFi 1 day)', newPrice: 'Price (smallest unit, e.g. 300 for 300 F)', create: 'Create and sell as a code', createHelp: 'Creates the product (type Digital, no file, no stock, no delivery address) and links it, in one step.', addPlan: 'Add a voucher product', pick: 'Choose a product…', add: 'Add',
     paste: 'Paste the codes, one per line: username or username,password. A header line is fine.', batch: 'Batch name (optional)', check: 'Check', loadNow: 'Load', cancel: 'Cancel', save: 'Save',
-    okCheck: (n: number) => `${n} code(s) ready to load.`, added: (n: number) => `${n} code(s) loaded.`, refused: 'Nothing was loaded. Fix these lines and try again:', line: 'Line', file: 'Choose a CSV file (Mikhmon: Users → Export)', fileHelp: 'The Username and Password columns are read; Profile and Comment are used to pick the right codes and name the batch.', profileLabel: 'Profile to load', profilePick: 'Choose…', profileMix: 'This file has several profiles: choose the one this product sells.', profileOne: (p: string) => `Profile in the file: ${p}. Make sure it is the one this product sells.`,
+    okCheck: (n: number) => `${n} code(s) ready to load.`, added: (n: number) => `${n} code(s) loaded.`, refused: 'Nothing was loaded. Fix these lines and try again:', line: 'Line', manage: 'Manage codes', batches: 'Batches', codesTab: 'Codes', noBatch: '(no batch)', avail: 'on sale', soldN: 'sold', voidN: 'withdrawn', voidAct: 'Withdraw unsold', restoreAct: 'Put back on sale', deleteAct: 'Delete unsold', moveAct: 'Move unsold to…', renameAct: 'Rename', moveTo: 'Move to', go: 'Go',
+    confirmVoid: (n: number) => `Withdraw ${n} unsold code(s) from sale? Sold codes are not touched. You can put them back later.`, confirmDelete: (n: number) => `Delete ${n} unsold code(s) for good? Sold codes are kept as records.`, confirmMove: (n: number, to: string) => `Move ${n} unsold code(s) to ${to}?`, renamePrompt: 'New batch name (empty = no name)',
+    done: (n: number, k: number) => `${n} code(s) changed${k ? `, ${k} sold code(s) left untouched` : ''}.`, search: 'Search a code', allStatus: 'All', stAvailable: 'On sale', stSold: 'Sold', stVoid: 'Withdrawn', withdraw: 'Withdraw', back: 'Put back', del: 'Delete', usedBy: 'Order', confirmDelOne: 'Delete this code for good?', confirmVoidSold: 'This code was already given to a customer. Mark it as withdrawn (for example after a refund)? It stays in your records.', noCodes: 'No code.',
+    alertTitle: 'Low-code alerts', alertHelp: 'You are told once when a product has this many codes left or fewer, and once more if it runs out (notification, and e-mail if you add addresses).', alertDefault: 'Default threshold', alertEmails: 'E-mail addresses (optional, separated by commas)', alertPush: 'Notify the app', alertSave: 'Save alerts', alertSaved: 'Saved.', alertThis: 'Alert at', alertMute: 'Mute alerts', alertAuto: 'default', file: 'Choose a CSV file (Mikhmon: Users → Export)', fileHelp: 'The Username and Password columns are read; Profile and Comment are used to pick the right codes and name the batch.', profileLabel: 'Profile to load', profilePick: 'Choose…', profileMix: 'This file has several profiles: choose the one this product sells.', profileOne: (p: string) => `Profile in the file: ${p}. Make sure it is the one this product sells.`,
     fr: 'Instructions (French)', en: 'Instructions (English)', instrHelp: 'Shown with the code (e.g. “Connect to WiFi Santé, open any page, enter the code”).',
     sale: 'Counter sale', saleHelp: 'Sell a code in person: it is handed out at once and can be printed or sent by WhatsApp.', qty: 'Quantity', method: 'Paid by', cash: 'Cash', mm: 'Mobile money', sell: 'Sell and show the code',
     phone: 'Customer WhatsApp (optional)', email: 'Customer e-mail (optional)', receipt: 'Receipt', print: 'Print', share: 'Send by WhatsApp', close: 'Close', user: 'Username', pass: 'Password',
@@ -25,7 +28,10 @@ const S = {
     empty: 'Aucun produit voucher pour le moment. Ajoutez-en un ci-dessous.', stock: 'En stock', sold: 'Vendus', waiting: 'En attente de code', low: 'Stock bas', none: 'Rupture',
     load: 'Charger des codes', instr: 'Instructions', remove: 'Retirer', confirmRemove: 'Ne plus vendre ce produit comme un code ?', newTitle: 'Créer un nouveau produit voucher', newName: 'Nom (ex. WiFi 1 jour)', newPrice: 'Prix (plus petite unité, ex. 300 pour 300 F)', create: 'Créer et vendre comme code', createHelp: 'Crée le produit (type Digital, sans fichier, sans stock, sans adresse de livraison) et le relie, en une seule étape.', addPlan: 'Ajouter un produit voucher', pick: 'Choisir un produit…', add: 'Ajouter',
     paste: 'Collez les codes, un par ligne : identifiant ou identifiant,mot de passe. Une ligne d’en-tête est acceptée.', batch: 'Nom du lot (facultatif)', check: 'Vérifier', loadNow: 'Charger', cancel: 'Annuler', save: 'Enregistrer',
-    okCheck: (n: number) => `${n} code(s) prêts à charger.`, added: (n: number) => `${n} code(s) chargés.`, refused: 'Rien n’a été chargé. Corrigez ces lignes puis réessayez :', line: 'Ligne', file: 'Choisir un fichier CSV (Mikhmon : Users → Export)', fileHelp: 'Les colonnes Username et Password sont lues ; Profile et Comment servent à choisir les bons codes et à nommer le lot.', profileLabel: 'Profil à charger', profilePick: 'Choisir…', profileMix: 'Ce fichier contient plusieurs profils : choisissez celui que vend ce produit.', profileOne: (p: string) => `Profil dans le fichier : ${p}. Vérifiez que c’est bien celui que vend ce produit.`,
+    okCheck: (n: number) => `${n} code(s) prêts à charger.`, added: (n: number) => `${n} code(s) chargés.`, refused: 'Rien n’a été chargé. Corrigez ces lignes puis réessayez :', line: 'Ligne', manage: 'Gérer les codes', batches: 'Lots', codesTab: 'Codes', noBatch: '(sans lot)', avail: 'en vente', soldN: 'vendus', voidN: 'retirés', voidAct: 'Retirer les invendus', restoreAct: 'Remettre en vente', deleteAct: 'Supprimer les invendus', moveAct: 'Déplacer les invendus vers…', renameAct: 'Renommer', moveTo: 'Déplacer vers', go: 'Valider',
+    confirmVoid: (n: number) => `Retirer ${n} code(s) invendu(s) de la vente ? Les codes vendus ne sont pas touchés. Vous pourrez les remettre en vente.`, confirmDelete: (n: number) => `Supprimer définitivement ${n} code(s) invendu(s) ? Les codes vendus sont conservés comme historique.`, confirmMove: (n: number, to: string) => `Déplacer ${n} code(s) invendu(s) vers ${to} ?`, renamePrompt: 'Nouveau nom du lot (vide = sans nom)',
+    done: (n: number, k: number) => `${n} code(s) modifié(s)${k ? `, ${k} code(s) vendu(s) non touché(s)` : ''}.`, search: 'Rechercher un code', allStatus: 'Tous', stAvailable: 'En vente', stSold: 'Vendu', stVoid: 'Retiré', withdraw: 'Retirer', back: 'Remettre', del: 'Supprimer', usedBy: 'Commande', confirmDelOne: 'Supprimer définitivement ce code ?', confirmVoidSold: 'Ce code a déjà été remis à un client. Le marquer comme retiré (par exemple après un remboursement) ? Il reste dans votre historique.', noCodes: 'Aucun code.',
+    alertTitle: 'Alertes de codes bas', alertHelp: 'Vous êtes prévenu une fois quand un produit a ce nombre de codes ou moins, et une fois de plus s’il est épuisé (notification, et e-mail si vous ajoutez des adresses).', alertDefault: 'Seuil par défaut', alertEmails: 'Adresses e-mail (facultatif, séparées par des virgules)', alertPush: 'Notifier l’application', alertSave: 'Enregistrer les alertes', alertSaved: 'Enregistré.', alertThis: 'Alerte à', alertMute: 'Couper les alertes', alertAuto: 'défaut', file: 'Choisir un fichier CSV (Mikhmon : Users → Export)', fileHelp: 'Les colonnes Username et Password sont lues ; Profile et Comment servent à choisir les bons codes et à nommer le lot.', profileLabel: 'Profil à charger', profilePick: 'Choisir…', profileMix: 'Ce fichier contient plusieurs profils : choisissez celui que vend ce produit.', profileOne: (p: string) => `Profil dans le fichier : ${p}. Vérifiez que c’est bien celui que vend ce produit.`,
     fr: 'Instructions (français)', en: 'Instructions (anglais)', instrHelp: 'Affichées avec le code (ex. « Connectez-vous au WiFi Santé, ouvrez une page, saisissez le code »).',
     sale: 'Vente au comptoir', saleHelp: 'Vendez un code en personne : il est remis tout de suite, à imprimer ou envoyer par WhatsApp.', qty: 'Quantité', method: 'Payé par', cash: 'Espèces', mm: 'Mobile money', sell: 'Vendre et afficher le code',
     phone: 'WhatsApp du client (facultatif)', email: 'E-mail du client (facultatif)', receipt: 'Ticket', print: 'Imprimer', share: 'Envoyer par WhatsApp', close: 'Fermer', user: 'Identifiant', pass: 'Mot de passe',
@@ -42,7 +48,6 @@ const muted = { color: 'var(--text-secondary)' };
 const btn = 'tap inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg disabled:opacity-50';
 const ghost = { border: '1px solid var(--border)', color: 'var(--text)' };
 const solid = { background: 'var(--text)', color: 'var(--bg-card)' };
-const LOW = 10;
 
 const codesText = (d: VoucherDelivery) => d.items.flatMap((i) => i.codes.map((c) => c.password ? `${c.username} / ${c.password}` : c.username)).join('\n');
 
@@ -64,6 +69,7 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
   const products = useQuery({ queryKey: ['products', 'for-vouchers'], queryFn: () => api.getProducts({ limit: 100 }), enabled: canWrite });
   const [loading, setLoading] = useState<VoucherPlan | null>(null);
   const [editing, setEditing] = useState<VoucherPlan | null>(null);
+  const [managing, setManaging] = useState<VoucherPlan | null>(null);
   const [receipt, setReceipt] = useState<VoucherDelivery | null>(null);
   const [pick, setPick] = useState('');
   const [note, setNote] = useState('');
@@ -97,10 +103,12 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
         {note && <p className="text-xs mt-1" style={{ color: 'var(--text)' }} role="status">{note}</p>}
       </div>
 
+      {canWrite && <AlertSettings s={s} onSaved={refresh} />}
+
       {plans.length === 0 && <p className="text-sm" style={muted}>{s.empty}</p>}
       <div className="space-y-3">
         {plans.map((p) => {
-          const warn = p.waiting > 0 || p.available < LOW;
+          const lvl = p.level ?? 'ok'; const warn = p.waiting > 0 || lvl !== 'ok';
           return (
             <div key={p.sku} className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} data-testid={`vplan-${p.sku}`}>
               <div className="flex flex-wrap items-baseline gap-x-3">
@@ -111,15 +119,17 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
                 <span><span style={muted}>{s.stock}: </span><b data-testid="v-avail" style={{ color: p.available === 0 ? '#dc2626' : warn ? '#d97706' : 'var(--text)' }}>{p.available}</b></span>
                 <span><span style={muted}>{s.sold}: </span><b>{p.sold}</b></span>
                 {p.waiting > 0 && <span style={{ color: '#dc2626' }}><b data-testid="v-waiting">{p.waiting}</b> {s.waiting}</span>}
-                {p.available === 0 ? <span className="text-xs font-medium" style={{ color: '#dc2626' }}>{s.none}</span> : p.available < LOW && <span className="text-xs font-medium" style={{ color: '#d97706' }}>{s.low}</span>}
+                {lvl === 'out' ? <span className="text-xs font-medium" style={{ color: '#dc2626' }}>{s.none}</span> : lvl === 'low' && <span className="text-xs font-medium" style={{ color: '#d97706' }}>{s.low}</span>}
               </div>
               {canWrite && (
                 <div className="flex flex-wrap gap-2">
                   <button className={btn} style={solid} onClick={() => setLoading(p)} data-testid={`vload-${p.sku}`}>{s.load}</button>
+                  <button className={btn} style={ghost} onClick={() => setManaging(p)} data-testid={`vmanage-${p.sku}`}>{s.manage}</button>
                   <button className={btn} style={ghost} onClick={() => setEditing(p)}>{s.instr}</button>
                   <button className={btn} style={ghost} onClick={() => { if (confirm(s.confirmRemove)) delPlan.mutate(p.sku); }}>{s.remove}</button>
                 </div>
               )}
+              {canWrite && <PlanAlert plan={p} s={s} onSaved={refresh} />}
             </div>
           );
         })}
@@ -176,6 +186,7 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
       </div>
 
       {loading && <LoadModal plan={loading} s={s} onClose={() => { setLoading(null); refresh(); }} />}
+      {managing && <ManageModal plan={managing} plans={plans} s={s} canWrite={canWrite} onClose={() => { setManaging(null); refresh(); }} />}
       {editing && <InstrModal plan={editing} s={s} onClose={() => { setEditing(null); refresh(); }} />}
       {receipt && <ReceiptModal d={receipt} s={s} lang={lang} plans={plans} onClose={() => setReceipt(null)} />}
     </div>
@@ -301,6 +312,97 @@ function ReceiptModal({ d, s, lang, plans, onClose }: { d: VoucherDelivery; s: t
             <button className={btn} style={solid} onClick={() => printReceipt(d, s, instr)}>{s.print}</button>
           </>}
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+function AlertSettings({ s, onSaved }: { s: typeof S.en; onSaved: () => void }) {
+  const { data } = useQuery({ queryKey: ['vouchers', 'alert-settings'], queryFn: () => api.getVoucherAlertSettings() });
+  const [open, setOpen] = useState(false); const [v, setV] = useState<{ t: string; e: string; p: boolean } | null>(null); const [msg, setMsg] = useState('');
+  const cur = v ?? (data ? { t: String(data.default_threshold), e: data.emails, p: !!data.push } : null);
+  const save = useMutation({ mutationFn: () => api.saveVoucherAlertSettings({ default_threshold: Math.max(0, parseInt(cur!.t, 10) || 0), emails: cur!.e, push: cur!.p }), onSuccess: () => { setMsg(s.alertSaved); setV(null); onSaved(); }, onError: (e: any) => setMsg(e.message) });
+  if (!cur) return null;
+  return (
+    <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} data-testid="v-alert-settings">
+      <button type="button" className="text-sm font-medium underline" style={{ color: 'var(--text)' }} onClick={() => setOpen(!open)}>{s.alertTitle} — {s.alertDefault}: {data?.default_threshold}</button>
+      {open && <div className="space-y-2">
+        <p className="text-xs" style={muted}>{s.alertHelp}</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="text-sm"><span className={labelCls} style={muted}>{s.alertDefault}</span><input className={inputCls} style={inputStyle} inputMode="numeric" value={cur.t} onChange={(e) => setV({ ...cur, t: e.target.value.replace(/[^\d]/g, '') })} /></label>
+          <label className="text-sm sm:col-span-2"><span className={labelCls} style={muted}>{s.alertEmails}</span><input className={inputCls} style={inputStyle} value={cur.e} onChange={(e) => setV({ ...cur, e: e.target.value })} /></label>
+        </div>
+        <label className="text-sm flex items-center gap-2" style={{ color: 'var(--text)' }}><input type="checkbox" checked={cur.p} onChange={(e) => setV({ ...cur, p: e.target.checked })} />{s.alertPush}</label>
+        <div className="flex items-center gap-3"><button className={btn} style={solid} disabled={save.isPending} onClick={() => save.mutate()}>{s.alertSave}</button>{msg && <span className="text-xs" role="status" style={muted}>{msg}</span>}</div>
+      </div>}
+    </div>
+  );
+}
+
+function PlanAlert({ plan, s, onSaved }: { plan: VoucherPlan; s: typeof S.en; onSaved: () => void }) {
+  const [t, setT] = useState(plan.threshold != null && plan.threshold !== undefined ? String(plan.threshold) : ''); const [muted, setMuted] = useState(!!plan.muted);
+  const save = useMutation({ mutationFn: (m: boolean) => api.saveVoucherPlanAlert(plan.sku, { threshold: t.trim() === '' ? null : Math.max(0, parseInt(t, 10) || 0), muted: m }), onSuccess: onSaved });
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs" style={muted ? undefined : undefined}>
+      <span style={{ color: 'var(--text-secondary)' }}>{s.alertThis}</span>
+      <input className="w-20 px-2 py-1 rounded-lg" style={inputStyle} inputMode="numeric" value={t} placeholder={s.alertAuto} onChange={(e) => setT(e.target.value.replace(/[^\d]/g, ''))} onBlur={() => save.mutate(muted)} aria-label={s.alertThis} />
+      <label className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}><input type="checkbox" checked={muted} onChange={(e) => { setMuted(e.target.checked); save.mutate(e.target.checked); }} />{s.alertMute}</label>
+    </div>
+  );
+}
+
+function ManageModal({ plan, plans, s, canWrite, onClose }: { plan: VoucherPlan; plans: VoucherPlan[]; s: typeof S.en; canWrite: boolean; onClose: () => void }) {
+  const qc = useQueryClient(); const [tab, setTab] = useState<'batches' | 'codes'>('batches'); const [msg, setMsg] = useState('');
+  const others = plans.filter((p) => p.sku !== plan.sku); const [dest, setDest] = useState(others[0]?.sku ?? '');
+  const batches = useQuery({ queryKey: ['vouchers', 'batches', plan.sku], queryFn: () => api.getVoucherBatches(plan.sku) });
+  const [q, setQ] = useState(''); const [status, setStatus] = useState('');
+  const codes = useQuery({ queryKey: ['vouchers', 'codes', plan.sku, q, status], queryFn: () => api.getVoucherCodes({ sku: plan.sku, q: q.trim() || undefined, status: status || undefined }), enabled: tab === 'codes' });
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['vouchers'] }); };
+  const batchOp = useMutation({ mutationFn: (v: Parameters<typeof api.voucherBatch>[0]) => api.voucherBatch(v), onSuccess: (r) => { setMsg(s.done(r.affected, r.kept_sold)); refresh(); }, onError: (e: any) => setMsg(e.message) });
+  const codeOp = useMutation({ mutationFn: (v: { seq: number; a: 'void' | 'restore' | 'delete' }): Promise<unknown> => (v.a === 'void' ? api.voidVoucherCode(v.seq) : v.a === 'restore' ? api.restoreVoucherCode(v.seq) : api.deleteVoucherCode(v.seq)), onSuccess: () => { setMsg(''); refresh(); }, onError: (e: any) => setMsg(e.message) });
+  const name = (b: string | null) => b ?? s.noBatch;
+  const st = (x: string) => (x === 'available' ? s.stAvailable : x === 'sold' ? s.stSold : s.stVoid);
+  return (
+    <Modal open onClose={onClose} title={`${s.manage} — ${plan.sku}`} size="lg">
+      <div className="space-y-3" data-testid="v-manage">
+        <div className="flex gap-2">{(['batches', 'codes'] as const).map((k) => <button key={k} type="button" className={btn} style={tab === k ? solid : ghost} onClick={() => setTab(k)}>{k === 'batches' ? s.batches : s.codesTab}</button>)}</div>
+        {msg && <p className="text-xs" role="status" style={muted}>{msg}</p>}
+        {tab === 'batches' && (
+          <ul className="space-y-2">
+            {batches.data?.items.length === 0 && <li className="text-sm" style={muted}>{s.noCodes}</li>}
+            {batches.data?.items.map((b) => {
+              const unsold = b.available + b.void;
+              return (
+                <li key={String(b.batch)} className="p-2 space-y-2" style={{ border: '1px solid var(--border)' }} data-testid="v-batch">
+                  <div className="text-sm" style={{ color: 'var(--text)' }}><b>{name(b.batch)}</b> <span style={muted}>· {b.available} {s.avail} · {b.sold} {s.soldN} · {b.void} {s.voidN}</span></div>
+                  {canWrite && <div className="flex flex-wrap gap-2 items-center">
+                    <button className={btn} style={ghost} disabled={b.available === 0} onClick={() => { if (confirm(s.confirmVoid(b.available))) batchOp.mutate({ sku: plan.sku, batch: b.batch, action: 'void' }); }}>{s.voidAct}</button>
+                    <button className={btn} style={ghost} disabled={b.void === 0} onClick={() => batchOp.mutate({ sku: plan.sku, batch: b.batch, action: 'restore' })}>{s.restoreAct}</button>
+                    <button className={btn} style={ghost} disabled={unsold === 0} onClick={() => { if (confirm(s.confirmDelete(unsold))) batchOp.mutate({ sku: plan.sku, batch: b.batch, action: 'delete' }); }}>{s.deleteAct}</button>
+                    <button className={btn} style={ghost} onClick={() => { const n = window.prompt(s.renamePrompt, b.batch ?? ''); if (n !== null) batchOp.mutate({ sku: plan.sku, batch: b.batch, action: 'rename', new_name: n }); }}>{s.renameAct}</button>
+                    {others.length > 0 && <span className="flex items-center gap-1"><select className="px-2 py-2 text-sm rounded-lg" style={inputStyle} value={dest} onChange={(e) => setDest(e.target.value)} aria-label={s.moveTo}>{others.map((p) => <option key={p.sku} value={p.sku}>{p.product_title}{p.variant_title && p.variant_title !== 'Default' ? ` — ${p.variant_title}` : ''}</option>)}</select>
+                      <button className={btn} style={ghost} disabled={unsold === 0 || !dest} onClick={() => { if (confirm(s.confirmMove(unsold, dest))) batchOp.mutate({ sku: plan.sku, batch: b.batch, action: 'move', to_sku: dest }); }}>{s.moveAct}</button></span>}
+                  </div>}
+                </li>);
+            })}
+          </ul>)}
+        {tab === 'codes' && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2"><input className={inputCls} style={{ ...inputStyle, flex: '2 1 160px' }} placeholder={s.search} value={q} onChange={(e) => setQ(e.target.value)} />
+              <select className={inputCls} style={{ ...inputStyle, flex: '1 1 120px' }} value={status} onChange={(e) => setStatus(e.target.value)}><option value="">{s.allStatus}</option><option value="available">{s.stAvailable}</option><option value="sold">{s.stSold}</option><option value="void">{s.stVoid}</option></select></div>
+            {codes.data?.items.length === 0 && <p className="text-sm" style={muted}>{s.noCodes}</p>}
+            <ul className="space-y-1">
+              {codes.data?.items.map((c) => (
+                <li key={c.seq} className="flex flex-wrap items-center justify-between gap-2 text-sm py-1" style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }} data-testid="v-code">
+                  <span><code>{c.username}{c.password && c.password !== c.username ? ` / ${c.password}` : ''}</code> <span style={muted}>· {st(c.status)}{c.batch ? ` · ${c.batch}` : ''}{c.order_number ? ` · ${s.usedBy} ${c.order_number}` : ''}</span></span>
+                  {canWrite && <span className="flex gap-1">
+                    {c.status !== 'void' && <button className={btn} style={ghost} onClick={() => { if (c.status !== 'sold' || confirm(s.confirmVoidSold)) codeOp.mutate({ seq: c.seq, a: 'void' }); }}>{s.withdraw}</button>}
+                    {c.status === 'void' && !c.order_number && <button className={btn} style={ghost} onClick={() => codeOp.mutate({ seq: c.seq, a: 'restore' })}>{s.back}</button>}
+                    {!c.order_number && c.status !== 'sold' && <button className={btn} style={ghost} onClick={() => { if (confirm(s.confirmDelOne)) codeOp.mutate({ seq: c.seq, a: 'delete' }); }}>{s.del}</button>}
+                  </span>}
+                </li>))}
+            </ul>
+          </div>)}
       </div>
     </Modal>
   );
