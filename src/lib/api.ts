@@ -641,7 +641,8 @@ export type VoucherBatch = { sku: string; batch: string | null; total: number; a
 export type VoucherBatchResult = { action: string; affected: number; kept_sold: number; dry_run: boolean };
 export type VoucherCode = { seq: number; sku: string; username: string; password: string; status: 'available' | 'sold' | 'void'; batch: string | null; sold_at: string | null; created_at: string; order_number: string | null; order_status: string | null };
 export type VoucherAlertSettings = { default_threshold: number; emails: string; push: number };
-export type VoucherPlan = { threshold?: number | null; level?: 'ok' | 'low' | 'out'; muted?: number; sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
+export type VoucherLocation = { product_id: string; title: string | null; instructions_fr: string | null; instructions_en: string | null };
+export type VoucherPlan = { product_id: string; threshold?: number | null; level?: 'ok' | 'low' | 'out'; muted?: number; sku: string; instructions_fr: string | null; instructions_en: string | null; variant_title: string | null; product_title: string | null; price_cents: number | null; currency: string | null; available: number; sold: number; void: number; waiting: number };
 export type VoucherLoadReport = { lines: number; to_add: number; added: number; ok: boolean; problems: { line: number; text: string; reason: string }[]; /** codes per Mikhmon profile, when the file has a Profile column */ profiles?: Record<string, number>; profile?: string; batch?: string };
 export type VoucherDelivery = { order_id: string; number: string; created_at: string; order_status: string; customer_email: string; customer_phone: string | null; emailed: boolean; has_link?: boolean; link?: string | null; items: { sku: string; title: string; qty: number; waiting: number; codes: { seq: number; username: string; password: string }[] }[] };
 export type RecoverySettings = { origin: string | null; step1_hours: number; step2_hours: number; discount_code: string | null; cooldown_days: number; max_age_days: number };
@@ -750,8 +751,10 @@ export const api = {
   async testRecovery(b: { to?: string; step?: number; lang?: 'fr' | 'en' }) { return request<{ sent_to: string }>('/v1/m/recovery/test', { method: 'POST', body: JSON.stringify(b) }); },
   async runRecovery() { return request<{ sent: number }>('/v1/m/recovery/run', { method: 'POST', body: '{}' }); },
   // Vouchers module
-  async getVoucherPlans() { return request<{ items: VoucherPlan[] }>('/v1/m/vouchers'); },
+  async getVoucherPlans() { return request<{ items: VoucherPlan[]; locations: VoucherLocation[] }>('/v1/m/vouchers'); },
   async saveVoucherPlan(sku: string, b: { instructions_fr?: string; instructions_en?: string }) { return request<{ sku: string }>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async saveVoucherLocation(productId: string, b: { instructions_fr?: string; instructions_en?: string }) { return request<{ product_id: string }>(`/v1/m/vouchers/locations/${encodeURIComponent(productId)}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async deleteVoucherLocation(productId: string) { return request<{ deleted: true }>(`/v1/m/vouchers/locations/${encodeURIComponent(productId)}`, { method: 'DELETE' }); },
   async deleteVoucherPlan(sku: string) { return request<{ deleted: true }>(`/v1/m/vouchers/plans/${encodeURIComponent(sku)}`, { method: 'DELETE' }); },
   /** Load codes. A refused list (422) comes back as a report, not an exception, so the screen can show the lines. */
   async loadVoucherCodes(sku: string, b: { text: string; batch?: string; dry_run?: boolean; profile?: string }): Promise<VoucherLoadReport> {

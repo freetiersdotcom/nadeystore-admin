@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, type VoucherDelivery, type VoucherLoadReport, type VoucherPlan } from '../../lib/api';
+import { api, ApiError, type VoucherDelivery, type VoucherLoadReport, type VoucherLocation, type VoucherPlan } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
 import { Modal } from '../../components/Modal';
 import { useLocale } from '../../lib/locale-context';
@@ -8,9 +8,9 @@ import { useLocale } from '../../lib/locale-context';
 // Self-contained strings: a module does not touch the core translation file.
 const S = {
   en: {
-    title: 'WiFi vouchers', help: 'Load the codes your router already knows, link them to a product, and every paid order gets its code automatically (page, e-mail, counter receipt). If you run out, paid orders wait and are served first-come-first-served when you load more.',
-    empty: 'No voucher product yet. Add one below.', stock: 'In stock', sold: 'Sold', waiting: 'Waiting for a code', low: 'Running low', none: 'Out of stock',
-    load: 'Load codes', instr: 'Instructions', remove: 'Remove', confirmRemove: 'Stop selling this product as a code?', newTitle: 'Create a new voucher product', newName: 'Name (e.g. WiFi 1 day)', newPrice: 'Price (smallest unit, e.g. 300 for 300 F)', create: 'Create and sell as a code', createHelp: 'Creates the product (type Digital, no file, no stock, no delivery address) and links it, in one step.', addPlan: 'Add a voucher product', pick: 'Choose a product…', add: 'Add',
+    title: 'WiFi vouchers', help: 'Organise your hotspots by location. Each location has plans (for example 24 hours or 30 days). Load the codes your router already knows into a plan, and every paid order gets its code automatically (page, e-mail, counter receipt). If a plan runs out, paid orders wait and are served in order as soon as you load more.',
+    empty: 'No location yet. Add your first one below.', stock: 'In stock', sold: 'Sold', waiting: 'Waiting for a code', low: 'Running low', none: 'Out of stock',
+    load: 'Load codes', instr: 'Instructions', remove: 'Remove', confirmRemove: 'Stop selling this plan as a code? (Only possible when it holds no codes.)', newTitle: 'Create a new voucher product', newName: 'Name (e.g. WiFi 1 day)', newPrice: 'Price (smallest unit, e.g. 300 for 300 F)', create: 'Create and sell as a code', createHelp: 'Creates the product (type Digital, no file, no stock, no delivery address) and links it, in one step.', addPlan: 'Or use an existing product variant as a plan', pick: 'Choose a product…', add: 'Add',
     paste: 'Paste the codes, one per line: username or username,password. A header line is fine.', batch: 'Batch name (optional)', check: 'Check', loadNow: 'Load', cancel: 'Cancel', save: 'Save',
     okCheck: (n: number) => `${n} code(s) ready to load.`, added: (n: number) => `${n} code(s) loaded.`, refused: 'Nothing was loaded. Fix these lines and try again:', line: 'Line', manage: 'Manage codes', batches: 'Batches', codesTab: 'Codes', noBatch: '(no batch)', avail: 'on sale', soldN: 'sold', voidN: 'withdrawn', voidAct: 'Withdraw unsold', restoreAct: 'Put back on sale', deleteAct: 'Delete unsold', moveAct: 'Move unsold to…', renameAct: 'Rename', moveTo: 'Move to', go: 'Go',
     confirmVoid: (n: number) => `Withdraw ${n} unsold code(s) from sale? Sold codes are not touched. You can put them back later.`, confirmDelete: (n: number) => `Delete ${n} unsold code(s) for good? Sold codes are kept as records.`, confirmMove: (n: number, to: string) => `Move ${n} unsold code(s) to ${to}?`, renamePrompt: 'New batch name (empty = no name)',
@@ -21,12 +21,20 @@ const S = {
     phone: 'Customer WhatsApp (optional)', email: 'Customer e-mail (optional)', receipt: 'Receipt', print: 'Print', share: 'Send by WhatsApp', close: 'Close', user: 'Username', pass: 'Password',
     orders: 'Recent deliveries', order: 'Order', codes: 'Codes', mail: 'E-mail', resend: 'Send again', view: 'Show', sent: 'Sent', noMail: '—', pending: 'Waiting for codes', refunded: 'Refunded: disable these codes on the router',
     noOrders: 'No voucher orders yet.', wasent: 'Resent.', notSent: 'Could not send (no e-mail set up or no address).',
+    locTitle: 'Add a location', locName: 'Location name (e.g. Central Café)', planName: 'Plan name (e.g. 24 hours)', locCreate: 'Create location and first plan', locLabel: 'Location', planLabel: 'Plan', priceLabel: 'Price',
+    locHelp: 'A location is a place where you sell WiFi (a café, a hotel, a campus). Customers see it as a product in your shop and choose a plan on its page. Photos and description are edited in Products.',
+    planHelp: 'A plan is one thing you sell at a location: a duration or a speed, with its own price and its own codes (for example “24 hours” or “30 days”). One plan matches one profile in Mikhmon.',
+    codesHelp: 'Codes are the usernames and passwords your router already knows. Load them into a plan; every paid order receives one per unit bought.',
+    manageHelp: 'Withdraw, put back on sale, delete, move or rename a batch (one loaded file), or work on a single code. Sold codes are never deleted.',
+    instrLocHelp: 'Default instructions for every plan of this location (network name, how to connect). A plan can have its own text; if it has none, this one is used.', instrEmptyPlan: 'Leave empty to use the location’s instructions.',
+    plansN: (n: number) => `${n} plan${n === 1 ? '' : 's'}`, addPlanTo: 'Add a plan', noPlan: 'No plan yet. Add one to start selling.', editPlan: 'Edit plan', renameLoc: 'Rename', removeLoc: 'Remove location', attention: 'Needs attention', helpLabel: 'Help', priceNote: 'Changing the price only affects new orders.',
+    confirmRemoveLoc: 'Remove this location and its product from your shop? Only possible when it has no plans.', locInstr: 'Location instructions', renamePromptLoc: 'New location name', savePlan: 'Save', needPlan: 'Enter a plan name and a price.', needLoc: 'Enter a location name, a plan name and a price.',
     wamsg: (codes: string) => `Your WiFi access:\n${codes}`,
   },
   fr: {
-    title: 'Vouchers WiFi', help: 'Chargez les codes que votre routeur connaît déjà, liez-les à un produit, et chaque commande payée reçoit son code automatiquement (page, e-mail, ticket au comptoir). En rupture, les commandes payées attendent et sont servies dans l’ordre dès que vous rechargez.',
-    empty: 'Aucun produit voucher pour le moment. Ajoutez-en un ci-dessous.', stock: 'En stock', sold: 'Vendus', waiting: 'En attente de code', low: 'Stock bas', none: 'Rupture',
-    load: 'Charger des codes', instr: 'Instructions', remove: 'Retirer', confirmRemove: 'Ne plus vendre ce produit comme un code ?', newTitle: 'Créer un nouveau produit voucher', newName: 'Nom (ex. WiFi 1 jour)', newPrice: 'Prix (plus petite unité, ex. 300 pour 300 F)', create: 'Créer et vendre comme code', createHelp: 'Crée le produit (type Digital, sans fichier, sans stock, sans adresse de livraison) et le relie, en une seule étape.', addPlan: 'Ajouter un produit voucher', pick: 'Choisir un produit…', add: 'Ajouter',
+    title: 'Tickets WiFi', help: 'Organisez vos hotspots par site. Chaque site a des forfaits (par exemple 24 heures ou 30 jours). Chargez dans un forfait les codes que votre routeur connaît déjà, et chaque commande payée reçoit son ticket automatiquement (page, e-mail, ticket au comptoir). Si un forfait est épuisé, les commandes payées attendent et sont servies dans l’ordre dès que vous rechargez.',
+    empty: 'Aucun site pour le moment. Ajoutez le premier ci-dessous.', stock: 'En stock', sold: 'Vendus', waiting: 'En attente de code', low: 'Stock bas', none: 'Rupture',
+    load: 'Charger des codes', instr: 'Instructions', remove: 'Retirer', confirmRemove: 'Ne plus vendre ce forfait comme ticket ? (Possible seulement s’il ne contient aucun code.)', newTitle: 'Créer un nouveau produit voucher', newName: 'Nom (ex. WiFi 1 jour)', newPrice: 'Prix (plus petite unité, ex. 300 pour 300 F)', create: 'Créer et vendre comme code', createHelp: 'Crée le produit (type Digital, sans fichier, sans stock, sans adresse de livraison) et le relie, en une seule étape.', addPlan: 'Ou utiliser une variante de produit existante comme forfait', pick: 'Choisir un produit…', add: 'Ajouter',
     paste: 'Collez les codes, un par ligne : identifiant ou identifiant,mot de passe. Une ligne d’en-tête est acceptée.', batch: 'Nom du lot (facultatif)', check: 'Vérifier', loadNow: 'Charger', cancel: 'Annuler', save: 'Enregistrer',
     okCheck: (n: number) => `${n} code(s) prêts à charger.`, added: (n: number) => `${n} code(s) chargés.`, refused: 'Rien n’a été chargé. Corrigez ces lignes puis réessayez :', line: 'Ligne', manage: 'Gérer les codes', batches: 'Lots', codesTab: 'Codes', noBatch: '(sans lot)', avail: 'en vente', soldN: 'vendus', voidN: 'retirés', voidAct: 'Retirer les invendus', restoreAct: 'Remettre en vente', deleteAct: 'Supprimer les invendus', moveAct: 'Déplacer les invendus vers…', renameAct: 'Renommer', moveTo: 'Déplacer vers', go: 'Valider',
     confirmVoid: (n: number) => `Retirer ${n} code(s) invendu(s) de la vente ? Les codes vendus ne sont pas touchés. Vous pourrez les remettre en vente.`, confirmDelete: (n: number) => `Supprimer définitivement ${n} code(s) invendu(s) ? Les codes vendus sont conservés comme historique.`, confirmMove: (n: number, to: string) => `Déplacer ${n} code(s) invendu(s) vers ${to} ?`, renamePrompt: 'Nouveau nom du lot (vide = sans nom)',
@@ -36,7 +44,15 @@ const S = {
     sale: 'Vente au comptoir', saleHelp: 'Vendez un code en personne : il est remis tout de suite, à imprimer ou envoyer par WhatsApp.', qty: 'Quantité', method: 'Payé par', cash: 'Espèces', mm: 'Mobile money', sell: 'Vendre et afficher le code',
     phone: 'WhatsApp du client (facultatif)', email: 'E-mail du client (facultatif)', receipt: 'Ticket', print: 'Imprimer', share: 'Envoyer par WhatsApp', close: 'Fermer', user: 'Identifiant', pass: 'Mot de passe',
     orders: 'Dernières remises', order: 'Commande', codes: 'Codes', mail: 'E-mail', resend: 'Renvoyer', view: 'Voir', sent: 'Envoyé', noMail: '—', pending: 'En attente de codes', refunded: 'Remboursée : désactivez ces codes sur le routeur',
-    noOrders: 'Aucune commande de vouchers pour le moment.', wasent: 'Renvoyé.', notSent: 'Envoi impossible (e-mail non configuré ou pas d’adresse).',
+    noOrders: 'Aucune commande de tickets pour le moment.', wasent: 'Renvoyé.', notSent: 'Envoi impossible (e-mail non configuré ou pas d’adresse).',
+    locTitle: 'Ajouter un site', locName: 'Nom du site (ex. Café Central)', planName: 'Nom du forfait (ex. 24 heures)', locCreate: 'Créer le site et son premier forfait', locLabel: 'Site', planLabel: 'Forfait', priceLabel: 'Prix',
+    locHelp: 'Un site est un lieu où vous vendez du WiFi (café, hôtel, campus). Vos clients le voient comme un produit de la boutique et choisissent un forfait sur sa page. Photos et description se modifient dans Produits.',
+    planHelp: 'Un forfait est ce que vous vendez sur un site : une durée ou un débit, avec son prix et ses propres codes (par exemple « 24 heures » ou « 30 jours »). Un forfait correspond à un profil Mikhmon.',
+    codesHelp: 'Les codes sont les identifiants et mots de passe que votre routeur connaît déjà. Chargez-les dans un forfait ; chaque commande payée en reçoit un par unité achetée.',
+    manageHelp: 'Retirer, remettre en vente, supprimer, déplacer ou renommer un lot (un fichier chargé), ou agir sur un seul code. Les codes vendus ne sont jamais supprimés.',
+    instrLocHelp: 'Instructions par défaut de tous les forfaits de ce site (nom du réseau, comment se connecter). Un forfait peut avoir son propre texte ; s’il n’en a pas, celui-ci est utilisé.', instrEmptyPlan: 'Laissez vide pour utiliser les instructions du site.',
+    plansN: (n: number) => `${n} forfait${n > 1 ? 's' : ''}`, addPlanTo: 'Ajouter un forfait', noPlan: 'Aucun forfait pour le moment. Ajoutez-en un pour commencer à vendre.', editPlan: 'Modifier le forfait', renameLoc: 'Renommer', removeLoc: 'Supprimer le site', attention: 'À surveiller', helpLabel: 'Aide', priceNote: 'Changer le prix n’affecte que les nouvelles commandes.',
+    confirmRemoveLoc: 'Supprimer ce site et son produit de la boutique ? Possible seulement s’il n’a aucun forfait.', locInstr: 'Instructions du site', renamePromptLoc: 'Nouveau nom du site', savePlan: 'Enregistrer', needPlan: 'Saisissez le nom du forfait et son prix.', needLoc: 'Saisissez le nom du site, le nom du forfait et son prix.',
     wamsg: (codes: string) => `Votre accès WiFi :\n${codes}`,
   },
 };
@@ -59,41 +75,65 @@ function printReceipt(d: VoucherDelivery, s: typeof S.en, instr: string[]) {
   w.document.close();
 }
 
+const slug = (x: string, n: number) => x.toUpperCase().normalize('NFD').replace(/[^A-Z0-9]+/g, '').slice(0, n);
+const mkSku = (loc: string, plan: string) => `WIFI-${slug(loc, 6) || 'LOC'}${slug(plan, 4)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+/** A small "?" that opens a short explanation under it (works by tap, not only by hover). */
+function Help({ text, label }: { text: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="inline-block align-middle">
+      <button type="button" aria-label={label} aria-expanded={open} onClick={() => setOpen(!open)} data-testid="v-help"
+        className="ml-1.5 inline-flex items-center justify-center rounded-full text-xs font-bold" style={{ width: 22, height: 22, border: '1px solid var(--border)', color: 'var(--text-secondary)', background: open ? 'var(--bg-card)' : 'transparent' }}>?</button>
+      {open && <span role="note" className="block text-xs font-normal normal-case tracking-normal mt-1 max-w-prose" style={muted}>{text}</span>}
+    </span>
+  );
+}
+
 export function Vouchers({ canWrite }: { canWrite: boolean }) {
   const { locale } = useLocale();
   const lang = locale === 'en' ? 'en' : 'fr'; const s = S[lang];
   const qc = useQueryClient();
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['vouchers'] }); };
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['vouchers'] }); qc.invalidateQueries({ queryKey: ['products'] }); };
   const { data } = useQuery({ queryKey: ['vouchers', 'plans'], queryFn: () => api.getVoucherPlans() });
   const orders = useQuery({ queryKey: ['vouchers', 'orders'], queryFn: () => api.getVoucherOrders() });
   const products = useQuery({ queryKey: ['products', 'for-vouchers'], queryFn: () => api.getProducts({ limit: 100 }), enabled: canWrite });
   const [loading, setLoading] = useState<VoucherPlan | null>(null);
-  const [editing, setEditing] = useState<VoucherPlan | null>(null);
+  const [editing, setEditing] = useState<{ plan?: VoucherPlan; loc?: VoucherLocation } | null>(null);
+  const [editPlan, setEditPlan] = useState<VoucherPlan | null>(null);
   const [managing, setManaging] = useState<VoucherPlan | null>(null);
   const [receipt, setReceipt] = useState<VoucherDelivery | null>(null);
   const [pick, setPick] = useState('');
   const [note, setNote] = useState('');
   const plans = data?.items ?? [];
+  const locations: VoucherLocation[] = data?.locations ?? [];
   const taken = new Set(plans.map((p) => p.sku));
   const variants = (products.data?.items ?? []).flatMap((p) => (p.variants ?? []).filter((v) => v.sku && !taken.has(v.sku)).map((v) => ({ sku: v.sku, label: `${p.title}${v.title && v.title !== 'Default' ? ' — ' + v.title : ''} (${v.sku})` })));
-  const [newName, setNewName] = useState(''); const [newPrice, setNewPrice] = useState('');
+  const [newLoc, setNewLoc] = useState(''); const [newPlan, setNewPlan] = useState(''); const [newPrice, setNewPrice] = useState('');
   const create = useMutation({
     mutationFn: async () => {
       const price = parseInt(newPrice, 10);
-      if (!newName.trim() || !Number.isFinite(price) || price < 0) throw new Error(s.newName);
-      const product = await api.createProduct({ title: newName.trim() });
-      const sku = `WIFI-${newName.trim().toUpperCase().normalize('NFD').replace(/[^A-Z0-9]+/g, '').slice(0, 8)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      if (!newLoc.trim() || !newPlan.trim() || !Number.isFinite(price) || price < 0) throw new Error(s.needLoc);
+      const product = await api.createProduct({ title: newLoc.trim() });
+      const sku = mkSku(newLoc, newPlan);
       try {
-        await api.createVariant(product.id, { sku, title: 'Default', price_cents: price, product_type: 'digital' });
+        await api.createVariant(product.id, { sku, title: newPlan.trim(), price_cents: price, product_type: 'digital' });
         await api.saveVoucherPlan(sku, {});
       } catch (e) { try { await api.deleteProduct(product.id); } catch { /* leave the product; it can be removed in Products */ } throw e; }
     },
-    onSuccess: () => { setNewName(''); setNewPrice(''); setNote(''); refresh(); qc.invalidateQueries({ queryKey: ['products'] }); },
+    onSuccess: () => { setNewLoc(''); setNewPlan(''); setNewPrice(''); setNote(''); refresh(); },
     onError: (e: any) => setNote(e.message),
   });
   const addPlan = useMutation({ mutationFn: (sku: string) => api.saveVoucherPlan(sku, {}), onSuccess: () => { setPick(''); refresh(); } });
   const delPlan = useMutation({ mutationFn: (sku: string) => api.deleteVoucherPlan(sku), onSuccess: refresh, onError: (e: any) => setNote(e.message) });
   const resend = useMutation({ mutationFn: (id: string) => api.resendVoucher(id), onSuccess: (r) => { setNote(r.emailed ? s.wasent : s.notSent); refresh(); }, onError: (e: any) => setNote(e.message) });
+  const delLoc = useMutation({
+    mutationFn: async (l: VoucherLocation) => { await api.deleteVoucherLocation(l.product_id); try { await api.deleteProduct(l.product_id); } catch { /* the product stays in Products */ } },
+    onSuccess: refresh, onError: (e: any) => setNote(e.message),
+  });
+  const renameLoc = useMutation({ mutationFn: (v: { id: string; title: string }) => api.updateProduct(v.id, { title: v.title }), onSuccess: refresh, onError: (e: any) => setNote(e.message) });
+  // A plan without its own instructions uses its location's: the receipt shows the same text the customer gets.
+  const plansForReceipt = plans.map((p) => { const l = locations.find((x) => x.product_id === p.product_id); return { ...p, instructions_fr: p.instructions_fr || l?.instructions_fr || null, instructions_en: p.instructions_en || l?.instructions_en || null }; });
 
   return (
     <div className="space-y-5" data-testid="vouchers-page">
@@ -105,59 +145,89 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
 
       {canWrite && <AlertSettings s={s} onSaved={refresh} />}
 
-      {plans.length === 0 && <p className="text-sm" style={muted}>{s.empty}</p>}
-      <div className="space-y-3">
-        {plans.map((p) => {
-          const lvl = p.level ?? 'ok'; const warn = p.waiting > 0 || lvl !== 'ok';
+      {locations.length === 0 && <p className="text-sm" style={muted}>{s.empty}</p>}
+      <div className="space-y-4">
+        {locations.map((l) => {
+          const lp = plans.filter((p) => p.product_id === l.product_id);
+          const stockTotal = lp.reduce((n, p) => n + p.available, 0);
+          const attention = lp.some((p) => p.waiting > 0 || (p.level ?? 'ok') !== 'ok');
           return (
-            <div key={p.sku} className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} data-testid={`vplan-${p.sku}`}>
-              <div className="flex flex-wrap items-baseline gap-x-3">
-                <b className="text-sm" style={{ color: 'var(--text)' }}>{p.product_title}{p.variant_title && p.variant_title !== 'Default' ? ` — ${p.variant_title}` : ''}</b>
-                <span className="text-xs" style={muted}>{p.sku}{p.price_cents != null && p.currency ? ` · ${formatPrice(p.price_cents, p.currency)}` : ''}</span>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <span><span style={muted}>{s.stock}: </span><b data-testid="v-avail" style={{ color: p.available === 0 ? '#dc2626' : warn ? '#d97706' : 'var(--text)' }}>{p.available}</b></span>
-                <span><span style={muted}>{s.sold}: </span><b>{p.sold}</b></span>
-                {p.waiting > 0 && <span style={{ color: '#dc2626' }}><b data-testid="v-waiting">{p.waiting}</b> {s.waiting}</span>}
-                {lvl === 'out' ? <span className="text-xs font-medium" style={{ color: '#dc2626' }}>{s.none}</span> : lvl === 'low' && <span className="text-xs font-medium" style={{ color: '#d97706' }}>{s.low}</span>}
-              </div>
-              {canWrite && (
-                <div className="flex flex-wrap gap-2">
-                  <button className={btn} style={solid} onClick={() => setLoading(p)} data-testid={`vload-${p.sku}`}>{s.load}</button>
-                  <button className={btn} style={ghost} onClick={() => setManaging(p)} data-testid={`vmanage-${p.sku}`}>{s.manage}</button>
-                  <button className={btn} style={ghost} onClick={() => setEditing(p)}>{s.instr}</button>
-                  <button className={btn} style={ghost} onClick={() => { if (confirm(s.confirmRemove)) delPlan.mutate(p.sku); }}>{s.remove}</button>
+            <section key={l.product_id} className="space-y-2" data-testid={`vloc-${l.product_id}`}>
+              <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{l.title}<Help text={s.locHelp} label={s.helpLabel} /></h2>
+                  <span className="text-xs" style={muted}>{s.plansN(lp.length)} · {s.stock}: {stockTotal}</span>
+                  {attention && <span className="text-xs font-medium" style={{ color: '#d97706' }}>{s.attention}</span>}
                 </div>
-              )}
-              {canWrite && <PlanAlert plan={p} s={s} onSaved={refresh} />}
-            </div>
+                {canWrite && (
+                  <div className="flex flex-wrap gap-2">
+                    <button className={btn} style={ghost} onClick={() => setEditing({ loc: l })} data-testid={`vlocinstr-${l.product_id}`}>{s.locInstr}</button>
+                    <button className={btn} style={ghost} onClick={() => { const n = window.prompt(s.renamePromptLoc, l.title ?? ''); if (n && n.trim()) renameLoc.mutate({ id: l.product_id, title: n.trim() }); }}>{s.renameLoc}</button>
+                    {lp.length === 0 && <button className={btn} style={ghost} onClick={() => { if (confirm(s.confirmRemoveLoc)) delLoc.mutate(l); }}>{s.removeLoc}</button>}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 pl-3" style={{ borderLeft: '2px solid var(--border)' }}>
+                {lp.length === 0 && <p className="text-sm" style={muted}>{s.noPlan}</p>}
+                {lp.map((p) => {
+                  const lvl = p.level ?? 'ok'; const warn = p.waiting > 0 || lvl !== 'ok';
+                  return (
+                    <div key={p.sku} className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} data-testid={`vplan-${p.sku}`}>
+                      <div className="flex flex-wrap items-baseline gap-x-3">
+                        <b className="text-sm" style={{ color: 'var(--text)' }}>{p.variant_title && p.variant_title !== 'Default' ? p.variant_title : p.product_title}</b>
+                        <Help text={s.planHelp} label={s.helpLabel} />
+                        <span className="text-xs" style={muted}>{p.sku}{p.price_cents != null && p.currency ? ` · ${formatPrice(p.price_cents, p.currency)}` : ''}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <span><span style={muted}>{s.stock}: </span><b data-testid="v-avail" style={{ color: p.available === 0 ? '#dc2626' : warn ? '#d97706' : 'var(--text)' }}>{p.available}</b><Help text={s.codesHelp} label={s.helpLabel} /></span>
+                        <span><span style={muted}>{s.sold}: </span><b>{p.sold}</b></span>
+                        {p.waiting > 0 && <span style={{ color: '#dc2626' }}><b data-testid="v-waiting">{p.waiting}</b> {s.waiting}</span>}
+                        {lvl === 'out' ? <span className="text-xs font-medium" style={{ color: '#dc2626' }}>{s.none}</span> : lvl === 'low' && <span className="text-xs font-medium" style={{ color: '#d97706' }}>{s.low}</span>}
+                      </div>
+                      {canWrite && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button className={btn} style={solid} onClick={() => setLoading(p)} data-testid={`vload-${p.sku}`}>{s.load}</button>
+                          <button className={btn} style={ghost} onClick={() => setManaging(p)} data-testid={`vmanage-${p.sku}`}>{s.manage}</button>
+                          <Help text={s.manageHelp} label={s.helpLabel} />
+                          <button className={btn} style={ghost} onClick={() => setEditPlan(p)} data-testid={`vedit-${p.sku}`}>{s.editPlan}</button>
+                          <button className={btn} style={ghost} onClick={() => setEditing({ plan: p })}>{s.instr}</button>
+                          <button className={btn} style={ghost} onClick={() => { if (confirm(s.confirmRemove)) delPlan.mutate(p.sku); }}>{s.remove}</button>
+                        </div>
+                      )}
+                      {canWrite && <PlanAlert plan={p} s={s} onSaved={refresh} />}
+                    </div>
+                  );
+                })}
+                {canWrite && <AddPlan loc={l} s={s} onDone={refresh} onError={setNote} />}
+              </div>
+            </section>
           );
         })}
       </div>
 
       {canWrite && (
         <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} data-testid="v-create">
-          <label className={labelCls} style={muted}>{s.newTitle}</label>
-          <p className="text-xs" style={muted}>{s.createHelp}</p>
+          <label className={labelCls} style={muted}>{s.locTitle}<Help text={s.locHelp} label={s.helpLabel} /></label>
           <div className="flex flex-wrap gap-2">
-            <input className={inputCls} style={{ ...inputStyle, flex: '2 1 200px' }} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={s.newName} data-testid="v-new-name" />
+            <input className={inputCls} style={{ ...inputStyle, flex: '2 1 200px' }} value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder={s.locName} data-testid="v-new-loc" />
+            <input className={inputCls} style={{ ...inputStyle, flex: '2 1 180px' }} value={newPlan} onChange={(e) => setNewPlan(e.target.value)} placeholder={s.planName} data-testid="v-new-name" />
             <input className={inputCls} style={{ ...inputStyle, flex: '1 1 140px' }} inputMode="numeric" value={newPrice} onChange={(e) => setNewPrice(e.target.value.replace(/[^\d]/g, ''))} placeholder={s.newPrice} data-testid="v-new-price" />
-            <button className={btn} style={solid} disabled={create.isPending || !newName.trim() || !newPrice} onClick={() => create.mutate()} data-testid="v-new-go">{s.create}</button>
+            <button className={btn} style={solid} disabled={create.isPending || !newLoc.trim() || !newPlan.trim() || !newPrice} onClick={() => create.mutate()} data-testid="v-new-go">{s.locCreate}</button>
           </div>
         </div>
       )}
 
       {canWrite && (
-        <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <label className={labelCls} style={muted}>{s.addPlan}</label>
-          <div className="flex flex-wrap gap-2">
+        <details className="p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <summary className="text-sm cursor-pointer" style={muted}>{s.addPlan}</summary>
+          <div className="flex flex-wrap gap-2 mt-2">
             <select className={inputCls} style={{ ...inputStyle, flex: '1 1 220px' }} value={pick} onChange={(e) => setPick(e.target.value)} data-testid="v-pick">
               <option value="">{s.pick}</option>
               {variants.map((v) => <option key={v.sku} value={v.sku}>{v.label}</option>)}
             </select>
             <button className={btn} style={solid} disabled={!pick || addPlan.isPending} onClick={() => addPlan.mutate(pick)} data-testid="v-add">{s.add}</button>
           </div>
-        </div>
+        </details>
       )}
 
       {canWrite && plans.length > 0 && <CounterSale plans={plans} s={s} onDone={(d) => { setReceipt(d); refresh(); }} />}
@@ -187,9 +257,62 @@ export function Vouchers({ canWrite }: { canWrite: boolean }) {
 
       {loading && <LoadModal plan={loading} s={s} onClose={() => { setLoading(null); refresh(); }} />}
       {managing && <ManageModal plan={managing} plans={plans} s={s} canWrite={canWrite} onClose={() => { setManaging(null); refresh(); }} />}
-      {editing && <InstrModal plan={editing} s={s} onClose={() => { setEditing(null); refresh(); }} />}
-      {receipt && <ReceiptModal d={receipt} s={s} lang={lang} plans={plans} onClose={() => setReceipt(null)} />}
+      {editing && <InstrModal target={editing} s={s} onClose={() => { setEditing(null); refresh(); }} />}
+      {editPlan && <EditPlanModal plan={editPlan} s={s} onClose={() => { setEditPlan(null); refresh(); }} />}
+      {receipt && <ReceiptModal d={receipt} s={s} lang={lang} plans={plansForReceipt} onClose={() => setReceipt(null)} />}
     </div>
+  );
+}
+
+function AddPlan({ loc, s, onDone, onError }: { loc: VoucherLocation; s: typeof S.en; onDone: () => void; onError: (m: string) => void }) {
+  const [open, setOpen] = useState(false); const [name, setName] = useState(''); const [price, setPrice] = useState('');
+  const add = useMutation({
+    mutationFn: async () => {
+      const cents = parseInt(price, 10);
+      if (!name.trim() || !Number.isFinite(cents) || cents < 0) throw new Error(s.needPlan);
+      const sku = mkSku(loc.title ?? '', name);
+      await api.createVariant(loc.product_id, { sku, title: name.trim(), price_cents: cents, product_type: 'digital' });
+      await api.saveVoucherPlan(sku, {});
+    },
+    onSuccess: () => { setName(''); setPrice(''); setOpen(false); onError(''); onDone(); },
+    onError: (e: any) => onError(e.message),
+  });
+  if (!open) return <button className={btn} style={ghost} onClick={() => setOpen(true)} data-testid={`vaddplan-${loc.product_id}`}>+ {s.addPlanTo}</button>;
+  return (
+    <div className="p-3 space-y-2" style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)' }}>
+      <div className="flex flex-wrap gap-2">
+        <input className={inputCls} style={{ ...inputStyle, flex: '2 1 180px' }} value={name} onChange={(e) => setName(e.target.value)} placeholder={s.planName} data-testid="v-plan-name" />
+        <input className={inputCls} style={{ ...inputStyle, flex: '1 1 140px' }} inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} placeholder={s.newPrice} data-testid="v-plan-price" />
+      </div>
+      <div className="flex gap-2">
+        <button className={btn} style={solid} disabled={add.isPending || !name.trim() || !price} onClick={() => add.mutate()} data-testid="v-plan-go">{s.addPlanTo}</button>
+        <button className={btn} style={ghost} onClick={() => setOpen(false)}>{s.cancel}</button>
+      </div>
+    </div>
+  );
+}
+
+function EditPlanModal({ plan, s, onClose }: { plan: VoucherPlan; s: typeof S.en; onClose: () => void }) {
+  const prod = useQuery({ queryKey: ['products', 'one', plan.product_id], queryFn: () => api.getProduct(plan.product_id) });
+  const variant = prod.data?.variants?.find((v) => v.sku === plan.sku);
+  const [name, setName] = useState<string | null>(null); const [price, setPrice] = useState<string | null>(null); const [err, setErr] = useState('');
+  const nm = name ?? variant?.title ?? plan.variant_title ?? ''; const pr = price ?? String(variant?.price_cents ?? plan.price_cents ?? '');
+  const save = useMutation({
+    mutationFn: () => { const cents = parseInt(pr, 10); if (!variant || !nm.trim() || !Number.isFinite(cents) || cents < 0) throw new Error(s.needPlan); return api.updateVariant(plan.product_id, variant.id, { title: nm.trim(), price_cents: cents }); },
+    onSuccess: onClose, onError: (e: any) => setErr(e.message),
+  });
+  return (
+    <Modal open onClose={onClose} title={`${s.editPlan} — ${plan.sku}`}>
+      <div className="space-y-3">
+        <div><label className={labelCls} style={muted}>{s.planLabel}</label><input className={inputCls} style={inputStyle} value={nm} onChange={(e) => setName(e.target.value)} data-testid="v-edit-name" /></div>
+        <div><label className={labelCls} style={muted}>{s.priceLabel}</label><input className={inputCls} style={inputStyle} inputMode="numeric" value={pr} onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} data-testid="v-edit-price" /><p className="text-xs mt-1" style={muted}>{s.newPrice}. {s.priceNote}</p></div>
+        {err && <p className="text-xs" role="alert" style={{ color: '#dc2626' }}>{err}</p>}
+        <div className="flex gap-2 justify-end">
+          <button className={btn} style={ghost} onClick={onClose}>{s.cancel}</button>
+          <button className={btn} style={solid} disabled={save.isPending || !variant} onClick={() => save.mutate()} data-testid="v-edit-save">{s.savePlan}</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -238,13 +361,18 @@ function LoadModal({ plan, s, onClose }: { plan: VoucherPlan; s: typeof S.en; on
   );
 }
 
-function InstrModal({ plan, s, onClose }: { plan: VoucherPlan; s: typeof S.en; onClose: () => void }) {
-  const [fr, setFr] = useState(plan.instructions_fr ?? ''); const [en, setEn] = useState(plan.instructions_en ?? '');
-  const save = useMutation({ mutationFn: () => api.saveVoucherPlan(plan.sku, { instructions_fr: fr, instructions_en: en }), onSuccess: onClose });
+function InstrModal({ target, s, onClose }: { target: { plan?: VoucherPlan; loc?: VoucherLocation }; s: typeof S.en; onClose: () => void }) {
+  const cur = target.plan ?? target.loc!;
+  const [fr, setFr] = useState(cur.instructions_fr ?? ''); const [en, setEn] = useState(cur.instructions_en ?? '');
+  const save = useMutation({
+    mutationFn: (): Promise<unknown> => (target.plan ? api.saveVoucherPlan(target.plan.sku, { instructions_fr: fr, instructions_en: en }) : api.saveVoucherLocation(target.loc!.product_id, { instructions_fr: fr, instructions_en: en })),
+    onSuccess: onClose,
+  });
+  const title = target.plan ? `${s.instr} — ${target.plan.sku}` : `${s.locInstr} — ${target.loc!.title}`;
   return (
-    <Modal open onClose={onClose} title={`${s.instr} — ${plan.sku}`}>
+    <Modal open onClose={onClose} title={title}>
       <div className="space-y-3">
-        <p className="text-xs" style={muted}>{s.instrHelp}</p>
+        <p className="text-xs" style={muted}>{s.instrHelp} {target.plan ? s.instrEmptyPlan : s.instrLocHelp}</p>
         <div><label className={labelCls} style={muted}>{s.fr}</label><textarea className={inputCls} style={{ ...inputStyle, minHeight: 80 }} value={fr} onChange={(e) => setFr(e.target.value)} /></div>
         <div><label className={labelCls} style={muted}>{s.en}</label><textarea className={inputCls} style={{ ...inputStyle, minHeight: 80 }} value={en} onChange={(e) => setEn(e.target.value)} /></div>
         <div className="flex gap-2 justify-end">
