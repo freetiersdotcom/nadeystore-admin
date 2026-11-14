@@ -624,6 +624,8 @@ export type ImportReport = {
   errors: Array<{ line: number; message: string }>; error_count: number; warnings: Array<{ line: number; message: string }>;
 };
 
+export type OfferInput = { name: string; active: boolean; trigger_kind: 'any' | 'product' | 'sku'; trigger_ref: string | null; offer_sku: string; discount_pct: number; max_qty: number; headline_fr: string | null; headline_en: string | null; priority: number };
+export type OfferRow = Omit<OfferInput, 'active'> & { id: string; active: number; offer_title: string | null; trigger_title: string | null; currency: string | null; seen: number; taken: number; sold: number; revenue_cents: number; created_at: string };
 export type ModuleInfo = { id: string; name: { fr: string; en: string }; description: { fr: string; en: string }; version: number; enabled: boolean; access: 'read' | 'write' | null };
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'converted' | 'expired';
 export type QuoteItem = { sku: string; title: string; qty: number; unit_price_cents: number };
@@ -715,6 +717,10 @@ export const api = {
   async renewSub(id: string) { return request<{ order_id: string }>(`/v1/m/subs/subs/${id}/renew-now`, { method: 'POST', body: '{}' }); },
   async getSubSettings() { return request<SubSettings>('/v1/m/subs/settings'); },
   async saveSubSettings(b: SubSettings) { return request<SubSettings>('/v1/m/subs/settings', { method: 'PUT', body: JSON.stringify(b) }); },
+  async getOffers() { return request<{ items: OfferRow[] }>('/v1/m/offers'); },
+  async createOffer(b: OfferInput) { return request<{ id: string }>('/v1/m/offers', { method: 'POST', body: JSON.stringify(b) }); },
+  async updateOffer(id: string, b: OfferInput) { return request<{ id: string }>(`/v1/m/offers/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(b) }); },
+  async deleteOffer(id: string) { return request<{ deleted: true }>(`/v1/m/offers/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
   async getMilestones(q?: string) { return request<{ items: MsRow[] }>(`/v1/m/milestones${q ? `?q=${encodeURIComponent(q)}` : ''}`); },
   async getMilestoneCandidates(q?: string) { return request<{ items: MsCandidate[] }>(`/v1/m/milestones/candidates${q ? `?q=${encodeURIComponent(q)}` : ''}`); },
   async getMilestone(orderId: string) { return request<MsView>(`/v1/m/milestones/order/${orderId}`); },
