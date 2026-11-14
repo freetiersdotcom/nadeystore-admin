@@ -80,7 +80,7 @@ export function Offers({ canWrite }: { canWrite: boolean }) {
               <span><span style={muted}>{s.seen}: </span><b>{o.seen}</b></span>
               <span><span style={muted}>{s.taken}: </span><b>{o.taken}</b></span>
               <span><span style={muted}>{s.paid}: </span><b>{o.sold}</b></span>
-              <span><span style={muted}>{s.revenue}: </span><b>{formatPrice(o.revenue_cents, o.currency ?? 'XOF')}</b></span>
+              <span><span style={muted}>{s.revenue}: </span><b>{formatPrice(o.revenue_cents)}</b></span>
               <Help text={s.h.numbers} label={s.helpLabel} />
             </div>
             {canWrite && (
