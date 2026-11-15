@@ -387,7 +387,6 @@ export function Layout({
 }
 
 function NavButton({
-  id,
   label,
   Icon,
   active,

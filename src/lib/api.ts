@@ -394,8 +394,7 @@ export type Variant = {
   price_cents: number;
   image_url: string | null;
   product_type: 'physical' | 'digital' | 'service';
-  asset_filename?: string | null;
-  asset_uploaded_at?: string | null;
+  digital_asset_key?: string | null;  // "assets/{variant_id}/{filename.ext}"
   weight_g?: number;
 };
 
@@ -485,15 +484,16 @@ export type Discount = {
 // Explicit payload types — match CreateDiscountBody and UpdateDiscountBody
 // in schemas.ts exactly. Optional fields are omitted when absent, not sent as null.
 export type CreateDiscountPayload = {
-  code?: string;                      // omit for codeless discounts
+  code?: string | null;                      // omit for codeless discounts
   type: DiscountType;
-  value: number;                      // integer: percentage 0–100, fixed_amount cents
-  min_purchase_cents?: number;        // omit for no minimum (API defaults to 0)
-  max_discount_cents?: number;        // omit for no cap (percentage only)
-  starts_at?: string;                 // ISO 8601 datetime, omit for immediate
-  expires_at?: string;                // ISO 8601 datetime, omit for no expiry
-  usage_limit?: number;               // omit for unlimited
-  usage_limit_per_customer?: number;  // omit for unlimited per customer
+  value: number;                              // integer: percentage 0–100, fixed_amount cents
+  min_purchase_cents?: number | null;         // omit for no minimum (API defaults to 0)
+  max_discount_cents?: number | null;         // omit for no cap (percentage only)
+  starts_at?: string | null;                  // ISO 8601 datetime, omit for immediate
+  expires_at?: string | null;                 // ISO 8601 datetime, omit for no expiry
+  usage_limit?: number | null;                // omit for unlimited
+  usage_limit_per_customer?: number | null;   // omit for unlimited per customer
+  // null fields are dropped by sanitiseDiscountPayload() before the request is sent
 };
 
 export type UpdateDiscountPayload = {
@@ -1030,15 +1030,17 @@ export const api = {
       sku: string;
       title: string;
       price_cents: number;
-      image_url?: string;
+      image_url?: string | null;
       product_type?: 'physical' | 'digital' | 'service';
       weight_g?: number;
       currency?: string;
     }
   ) {
+    // The create endpoint rejects `null` and '' for image_url (400): leave the field out when there is no image.
+    const { image_url, ...rest } = data;
     return request<Variant>(`/v1/products/${productId}/variants`, {
       method: 'POST',
-      body: JSON.stringify({ currency: STORE_CURRENCY, ...data }),
+      body: JSON.stringify({ currency: STORE_CURRENCY, ...rest, ...(image_url ? { image_url } : {}) }),
     });
   },
 
@@ -1121,7 +1123,7 @@ export const api = {
       );
     }
 
-    return res.json() as Promise<{ filename: string; uploaded_at: string }>;
+    return res.json() as Promise<{ key: string; size_bytes: number; content_type: string; variant_id: string }>;
   },
 
   async deleteAsset(productId: string, variantId: string) {

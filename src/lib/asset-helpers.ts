@@ -1,17 +1,3 @@
-// ── Variant type — updated section only ───────────────────────
-// Replace the Variant type in your existing api.ts with this.
-
-export type Variant = {
-  id: string;
-  sku: string;
-  title: string;
-  price_cents: number;
-  image_url: string | null;
-  product_type: 'physical' | 'digital';
-  digital_asset_key: string | null;  // "assets/{variant_id}/{filename.ext}"
-  weight_g?: number;
-};
-
 // ── Asset helpers ─────────────────────────────────────────────
 // These are pure utility functions — no API calls.
 // Add them to api.ts or a separate src/lib/assets.ts.

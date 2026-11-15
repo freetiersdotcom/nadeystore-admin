@@ -25,7 +25,6 @@ import {
   FileUp,
   Download,
   File,
-  Trash2,
 } from 'lucide-react';
 import { api, Product, Variant } from '../lib/api';
 import { formatPrice } from '../lib/format';
@@ -101,7 +100,6 @@ export function Products() {
   const [variantImage, setVariantImage] = useState<string | null>(null);
   const [variantProductType, setVariantProductType] = useState<'physical' | 'digital' | 'service'>('physical');
   const [variantWeightG, setVariantWeightG] = useState('');
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Asset state — mirrors variantImage exactly:
   //   null           → no asset (new variant or asset deleted)

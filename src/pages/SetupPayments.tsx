@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2, CheckCircle, AlertCircle, Eye, EyeOff, Copy, Check } from 'lucide-react';
-import { api, StripeConfig, FedaPayConfig } from '../lib/api';
+import { api } from '../lib/api';
 import { getAuth } from '../lib/store';
 import { useT } from '../lib/locale-context';
 
@@ -267,7 +267,6 @@ function FedaPayCard() {
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
 function ProviderCard({
-  name,
   logo,
   configured,
   isLoading,

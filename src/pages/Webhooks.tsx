@@ -12,7 +12,7 @@ import {
   Clock,
   RotateCw,
 } from 'lucide-react';
-import { api, Webhook, WebhookDetail } from '../lib/api';
+import { api } from '../lib/api';
 import { Modal } from '../components/Modal';
 import { useT } from '../lib/locale-context';
 import clsx from 'clsx';
