@@ -31,6 +31,7 @@ import { formatPrice } from '../lib/format';
 import { assetDownloadUrl, assetDisplayName, assetFilename, formatFileSize } from '../lib/asset-helpers';
 import { StatusBadge } from '../components/StatusBadge';
 import { ImportProductsButton, ExportButton } from '../components/DataTransfer';
+import { CurrencyAlign } from '../components/CurrencyAlign';
 import { Modal } from '../components/Modal';
 import { cellLabel } from '../lib/table';
 import { useT } from '../lib/locale-context';
@@ -74,7 +75,7 @@ const labelClass = 'block text-xs font-medium uppercase tracking-wide mb-2';
 const labelStyle = { color: 'var(--text-secondary)' } as const;
 const helpStyle = { color: 'var(--text-muted)' } as const;
 
-export function Products() {
+export function Products({ canWrite = false }: { canWrite?: boolean } = {}) {
   const t = useT();
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
@@ -461,6 +462,8 @@ export function Products() {
           </button>
         </div>
       </div>
+
+      <CurrencyAlign canWrite={canWrite} />
 
       {/* Table */}
       <div

@@ -155,6 +155,8 @@ export type CostImportReport = { ok: boolean; problems: { line: number; message:
 export type LaunchCheck = { id: string; ok: boolean; must: boolean; count?: number; sample?: string[] };
 export type LaunchManual = { id: string; must: boolean; done: boolean; at: string | null; by: string | null };
 export type LaunchStatus = { checks: LaunchCheck[]; manual: LaunchManual[]; ready: boolean };
+
+export type CurrencyAudit = { store_currency: string; total: number; mismatched: number; by_currency: { currency: string; count: number }[] };
 export type SetupStatus = {
   owner_exists: boolean;
   email: { configured: boolean; provider: string | null };
@@ -1503,6 +1505,8 @@ export const api = {
   getProfitFees() { return request<{ fees: Record<string, number>; methods: string[] }>('/v1/profit/fees'); },
   saveProfitFees(fees: Record<string, number>) { return request<{ fees: Record<string, number> }>('/v1/profit/fees', { method: 'PUT', body: JSON.stringify({ fees }) }); },
   getLaunch() { return request<LaunchStatus>('/v1/launch'); },
+  currencyAudit() { return request<CurrencyAudit>('/v1/catalog/currency'); },
+  alignCurrency() { return request<{ store_currency: string; updated: number }>('/v1/catalog/currency/align', { method: 'POST' }); },
   tickLaunch(id: string, done: boolean) { return request<{ id: string; done: boolean }>(`/v1/launch/manual/${id}`, { method: 'PUT', body: JSON.stringify({ done }) }); },
   sealSecrets() {
     return request<{ sealed: string[] }>('/v1/auth/secrets/seal', { method: 'POST' });

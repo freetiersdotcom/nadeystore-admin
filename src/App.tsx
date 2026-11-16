@@ -198,7 +198,7 @@ export default function App() {
       {currentPage === 'orders' && <Orders canCosts={can('costs.manage')} canShop={can('settings.manage')} />}
       {currentPage === 'customers' && <Customers />}
       {currentPage === 'inventory' && <Inventory />}
-      {currentPage === 'products' && <Products />}
+      {currentPage === 'products' && <Products canWrite={can('products.write')} />}
       {currentPage === 'discounts' && <Discounts />}
       {currentPage === 'downloads' && <Downloads />}
       {currentPage === 'appointments' && <Appointments />}
