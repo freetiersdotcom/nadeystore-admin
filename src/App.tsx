@@ -19,6 +19,9 @@ import { Shipping } from './pages/Shipping';
 import { SetupPayments } from './pages/SetupPayments';
 import { SetupEmail } from './pages/SetupEmail';
 import { Messages } from './pages/Messages';
+import { PlanSetup } from './pages/PlanSetup';
+import { usePlan } from './lib/plan';
+import { NotInPlan, TierLimitBanner } from './components/PlanGate';
 
 const VALID_PAGES: Page[] = [
   'orders',
@@ -32,6 +35,7 @@ const VALID_PAGES: Page[] = [
   'webhooks',
   'setup/payments',
   'setup/email',
+  'setup/plan',
   'messages',
   'profit',
   'team',
@@ -59,6 +63,7 @@ export default function App() {
   const [confirmToken, setConfirmToken] = useState<string | null>(initialConfirmToken);
   const [currentPage, setCurrentPage] = useState<AnyPage>('orders');
   const [theme, setThemeState] = useState<'light' | 'dark'>(getTheme());
+  const plan = usePlan(!!me);
 
   const can = useCallback(
     (permission: string) => !!me && (me.permissions.includes('*') || me.permissions.includes(permission)),
@@ -83,7 +88,8 @@ export default function App() {
           /* fall through */
         }
       }
-      clearAuth();
+      // Only a refusal ends the stored sign-in; a busy or unreachable API (429, 5xx, offline) must not sign the person out.
+      if (err instanceof ApiError && [401, 403, 404].includes(err.status)) clearAuth();
       setMe(null);
       return false;
     }
@@ -119,7 +125,7 @@ export default function App() {
       const hash = window.location.hash.slice(1) as AnyPage;
       if (!VALID_PAGES.includes(hash as Page) && !/^m\/[a-z][a-z0-9-]*$/.test(hash)) return;
       // Guard: agency-only pages, and pages the person's role cannot open.
-      const agencyOnlyPages: Page[] = ['webhooks', 'setup/payments', 'setup/email'];
+      const agencyOnlyPages: Page[] = ['webhooks', 'setup/payments', 'setup/email', 'setup/plan'];
       if (agencyOnlyPages.includes(hash as Page) && !isAgency) return;
       const needed = PAGE_PERMISSION[hash as Page];
       if (me && needed && !can(needed)) return;
@@ -195,6 +201,11 @@ export default function App() {
       hasUser={!!me.user}
       userLabel={me.user ? `${me.user.email} · ${me.user.role}` : undefined}
     >
+      <TierLimitBanner />
+      {plan.ready && !plan.allowsPage(currentPage) ? (
+        <NotInPlan />
+      ) : (
+        <>
       {currentPage === 'orders' && <Orders canCosts={can('costs.manage')} canShop={can('settings.manage')} />}
       {currentPage === 'customers' && <Customers />}
       {currentPage === 'inventory' && <Inventory />}
@@ -206,10 +217,13 @@ export default function App() {
       {currentPage === 'webhooks' && isAgency && <Webhooks />}
       {currentPage === 'setup/payments' && isAgency && <SetupPayments />}
       {currentPage === 'setup/email' && isAgency && <SetupEmail />}
+      {currentPage === 'setup/plan' && isAgency && <PlanSetup />}
       {currentPage === 'messages' && <Messages />}
       {currentPage === 'profit' && <Profit />}
       {currentPage === 'team' && <Team me={me} onSignedOut={handleLogout} />}
       {currentPage.startsWith('m/') && <ModulePage id={currentPage.slice(2)} />}
+        </>
+      )}
     </Layout>
   );
 }

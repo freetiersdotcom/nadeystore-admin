@@ -4,6 +4,7 @@ import { getPasskey, passkeyFailure, passkeysSupported } from '../lib/passkeys';
 import { getAgencyMode, setAgencyMode, setApiUrl, setSessionToken, AUTH_MODE } from '../lib/store';
 import { api, ApiError, type AuthConfig, type SignInResult } from '../lib/api';
 import { useLocale, useT } from '../lib/locale-context';
+import { useBrandView } from '../lib/plan';
 
 type LoginProps = {
   /** A person signed in (session started). */
@@ -12,7 +13,7 @@ type LoginProps = {
   onKeyLogin: (apiUrl: string, apiKey: string) => Promise<void>;
 };
 
-const STORE_NAME = import.meta.env.VITE_STORE_NAME || 'merchant';
+// The name shown here comes from the branding (see lib/plan.tsx).
 const HAS_API_URL = Boolean(import.meta.env.VITE_API_URL);
 const RESEND_SECONDS = 30;
 
@@ -30,6 +31,7 @@ const labelClass = 'block text-xs font-medium mb-1.5';
 
 export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
   const t = useT();
+  const brand = useBrandView();
   const { locale } = useLocale();
 
   const [step, setStep] = useState<Step>('email');
@@ -226,13 +228,14 @@ export function Login({ onSignedIn, onKeyLogin }: LoginProps) {
             className="inline-flex items-center justify-center mb-4 select-none focus:outline-none"
             tabIndex={-1}
           >
-            <svg className="w-10 h-10" viewBox="0 0 88 88" fill="currentColor" style={{ color: 'var(--text)' }}>
+            {brand.logo ? <img src={brand.logo} alt="" className="w-10 h-10 object-contain" /> : null}
+            <svg className={brand.logo ? 'hidden' : 'w-10 h-10'} viewBox="0 0 88 88" fill="currentColor" style={{ color: 'var(--text)' }}>
               <path d="M46 84V88H42V84H46ZM84 46V42C84 21.0132 66.9868 4 46 4H42C21.0132 4 4 21.0132 4 42V46C4 66.9868 21.0132 84 42 84V88C18.804 88 0 69.196 0 46V42C1.01484e-06 19.1665 18.221 0.588624 40.916 0.0136719L42 0H46L47.084 0.0136719C69.779 0.588625 88 19.1665 88 42V46L87.9863 47.084C87.4114 69.779 68.8335 88 46 88V84C66.9868 84 84 66.9868 84 46Z" />
               <path d="M55.6 29C60.4 29 63.6 32.2 63.6 37V61H57.2V40.2C57.2 37 55.6 35.4 52.4 35.4C49.2 35.4 47.6 37 47.6 40.2V61H41.2V35.4H31.6V61H25.2V29H47.6V37C47.6 32.2 50.8 29 55.6 29Z" />
             </svg>
           </button>
           <h1 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-            {STORE_NAME}
+            {brand.name}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             {t('login.tagline')}

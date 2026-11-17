@@ -27,6 +27,7 @@ import { useLocale, useT } from '../lib/locale-context';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { MODULE_UI } from '../lib/modules';
+import { usePlan, useBrandView } from '../lib/plan';
 
 export type Page =
   | 'orders'
@@ -40,6 +41,7 @@ export type Page =
   | 'webhooks'
   | 'setup/payments'
   | 'setup/email'
+  | 'setup/plan'
   | 'messages'
   | 'profit'
   | 'team';
@@ -60,6 +62,7 @@ export const PAGE_PERMISSION: Record<Page, string | null> = {
   webhooks: 'webhooks.manage',
   'setup/payments': 'settings.manage',
   'setup/email': 'settings.manage',
+  'setup/plan': 'settings.manage',
   messages: 'messages.read',
   profit: 'costs.manage',
   team: null,
@@ -89,6 +92,7 @@ const NAV_ITEM_DEFS: NavItemDef[] = [
   { id: 'webhooks',        labelKey: 'nav.webhooks',  icon: Webhook,   agencyOnly: true },
   { id: 'setup/payments',  labelKey: 'nav.payments',  icon: Settings,  agencyOnly: true },
   { id: 'setup/email',     labelKey: 'nav.email',     icon: Settings,  agencyOnly: true },
+  { id: 'setup/plan',      labelKey: 'nav.plan',      icon: Settings,  agencyOnly: true },
 ];
 
 type LayoutProps = {
@@ -120,6 +124,8 @@ export function Layout({
   userLabel,
 }: LayoutProps) {
   const t = useT();
+  const plan = usePlan();
+  const brand = useBrandView();
   const { data: unread } = useQuery({
       queryKey: ['messages-count'],
       queryFn: () => api.getSubmissionCount(),
@@ -140,16 +146,17 @@ export function Layout({
 
   const visibleItems = NAV_ITEM_DEFS.filter((item) => {
     if (item.agencyOnly && !isAgency) return false;
+    if (!plan.allowsPage(item.id)) return false;
     if (item.id === 'team') return hasUser;
     const needed = PAGE_PERMISSION[item.id];
     return !needed || can(needed);
   });
 
   const standardItems = visibleItems.filter(
-    (item) => item.id !== 'setup/payments' && item.id !== 'setup/email'
+    (item) => item.id !== 'setup/payments' && item.id !== 'setup/email' && item.id !== 'setup/plan'
   );
   const setupItems = visibleItems.filter(
-    (item) => item.id === 'setup/payments' || item.id === 'setup/email'
+    (item) => item.id === 'setup/payments' || item.id === 'setup/email' || item.id === 'setup/plan'
   );
 
   // Pages of the modules this shop has switched on (and the person may open).
@@ -165,8 +172,9 @@ export function Layout({
     <>
       {/* Logo */}
         <div className="flex items-center gap-2.5 px-2.5 py-2 mb-4">
+          {brand.logo ? <img src={brand.logo} alt="" className="w-5 h-5 flex-shrink-0 object-contain" /> : null}
           <svg
-            className="w-5 h-5 flex-shrink-0"
+            className={brand.logo ? 'hidden' : 'w-5 h-5 flex-shrink-0'}
             viewBox="0 0 88 88"
             fill="currentColor"
             style={{ color: 'var(--text)' }}
@@ -176,7 +184,7 @@ export function Layout({
           </svg>
           {!collapsed && (
             <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
-              merchant
+              {brand.name}
             </span>
           )}
         </div>

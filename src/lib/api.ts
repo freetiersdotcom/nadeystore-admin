@@ -31,6 +31,8 @@ async function send<T>(path: string, options: RequestInit, announceExpiry: boole
     const err = await res.json().catch(() => ({}));
     // A signed-in request that comes back 401 means the session ended: let the app return to sign-in.
     if (res.status === 401 && announceExpiry) window.dispatchEvent(new Event('auth:expired'));
+    // The plan refuses this: the banner explains it in plain words.
+    if (err.error?.code === 'tier_limit') window.dispatchEvent(new CustomEvent('tier:limit', { detail: err.error?.message ?? '' }));
     throw new ApiError(
       err.error?.code || 'unknown',
       res.status,
@@ -628,6 +630,15 @@ export type ImportReport = {
 
 export type OfferInput = { name: string; active: boolean; trigger_kind: 'any' | 'product' | 'sku'; trigger_ref: string | null; offer_sku: string; discount_pct: number; max_qty: number; headline_fr: string | null; headline_en: string | null; priority: number };
 export type OfferRow = Omit<OfferInput, 'active'> & { id: string; active: number; offer_title: string | null; trigger_title: string | null; currency: string | null; seen: number; taken: number; sold: number; revenue_cents: number; created_at: string };
+export type Kind = 'physical' | 'digital' | 'service';
+export type Capabilities = {
+  tier: string; label: string; sells: Kind[];
+  features: { discounts: boolean; import_export: boolean; profit: boolean; backup: boolean };
+  modules: string[]; limits: { max_products: number | null; max_staff: number | null }; usage: { products: number; staff: number };
+};
+export type Branding = { name: string; logo_url: string; favicon_url: string; primary_color: string; locale: 'auto' | 'fr' | 'en' };
+export type StoredPlan = { tier: string; sells?: Kind[]; extra_modules?: string[]; max_products?: number | null; max_staff?: number | null };
+export type TierList = { tiers: Record<string, { label: string; modules: string[] | '*'; features: string[] | '*'; max_products: number | null; max_staff: number | null }>; stored: StoredPlan | null; modules: string[] };
 export type ModuleInfo = { id: string; name: { fr: string; en: string }; description: { fr: string; en: string }; version: number; enabled: boolean; access: 'read' | 'write' | null };
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'converted' | 'expired';
 export type QuoteItem = { sku: string; title: string; qty: number; unit_price_cents: number };
@@ -729,6 +740,12 @@ export const api = {
   async saveMilestone(orderId: string, b: { stages: MsStageInput[]; note?: string | null }) { return request<{ ok: boolean; created: boolean; notified: boolean }>(`/v1/m/milestones/order/${orderId}`, { method: 'PUT', body: JSON.stringify(b) }); },
   async deleteMilestone(orderId: string) { return request<{ ok: boolean }>(`/v1/m/milestones/order/${orderId}`, { method: 'DELETE' }); },
   async requestMilestone(orderId: string, send = true) { return request<{ pos: number; amount_cents: number; pay_url: string; emailed: boolean }>(`/v1/m/milestones/order/${orderId}/request`, { method: 'POST', body: JSON.stringify({ send }) }); },
+  async getCapabilities() { return request<Capabilities>('/v1/capabilities'); },
+  async getBranding() { return send<Branding>('/v1/branding', {}, false); },
+  // A wrong setup token answers 401: that is not an ended sign-in, so it must not sign the person out (hence announceExpiry = false).
+  async saveBranding(b: Branding) { return request<Branding>('/v1/branding', { method: 'PUT', body: JSON.stringify(b) }); },
+  async getTierAdmin(setupToken: string) { return send<TierList>('/v1/tier', { headers: { 'X-Setup-Token': setupToken } }, false); },
+  async putTierAdmin(setupToken: string, b: StoredPlan) { return send<{ stored: StoredPlan }>('/v1/tier', { method: 'PUT', headers: { 'X-Setup-Token': setupToken }, body: JSON.stringify(b) }, false); },
   async getModules() { return request<{ items: ModuleInfo[] }>('/v1/modules'); },
   async setModule(id: string, enabled: boolean) { return request<{ id: string; enabled: boolean }>(`/v1/modules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) }); },
   // Quotations module

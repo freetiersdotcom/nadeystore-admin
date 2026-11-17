@@ -1,0 +1,4 @@
+src/lib/plan.tsx
+src/components/PlanGate.tsx
+src/pages/PlanCard.tsx
+src/pages/PlanSetup.tsx

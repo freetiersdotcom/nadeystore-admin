@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   useReactTable,
@@ -31,6 +31,8 @@ import { formatPrice } from '../lib/format';
 import { assetDownloadUrl, assetDisplayName, assetFilename, formatFileSize } from '../lib/asset-helpers';
 import { StatusBadge } from '../components/StatusBadge';
 import { ImportProductsButton, ExportButton } from '../components/DataTransfer';
+import { Feature } from '../components/PlanGate';
+import { usePlan } from '../lib/plan';
 import { CurrencyAlign } from '../components/CurrencyAlign';
 import { Modal } from '../components/Modal';
 import { cellLabel } from '../lib/table';
@@ -77,6 +79,7 @@ const helpStyle = { color: 'var(--text-muted)' } as const;
 
 export function Products({ canWrite = false }: { canWrite?: boolean } = {}) {
   const t = useT();
+  const plan = usePlan();
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -99,7 +102,7 @@ export function Products({ canWrite = false }: { canWrite?: boolean } = {}) {
   const [variantTitle, setVariantTitle] = useState('');
   const [variantPrice, setVariantPrice] = useState('');
   const [variantImage, setVariantImage] = useState<string | null>(null);
-  const [variantProductType, setVariantProductType] = useState<'physical' | 'digital' | 'service'>('physical');
+  const [variantProductType, setVariantProductType] = useState<'physical' | 'digital' | 'service'>(plan.firstKind());
   const [variantWeightG, setVariantWeightG] = useState('');
 
   // Asset state — mirrors variantImage exactly:
@@ -201,12 +204,17 @@ export function Products({ canWrite = false }: { canWrite?: boolean } = {}) {
     }
   };
 
+  // A new variant starts with a kind this shop sells (the plan may arrive after the form state was created).
+  useEffect(() => {
+    if (variantMode === 'add' && !plan.sellsKind(variantProductType)) setVariantProductType(plan.firstKind());
+  });
+
   const resetVariantForm = () => {
     setVariantSku('');
     setVariantTitle('');
     setVariantPrice('');
     setVariantImage(null);
-    setVariantProductType('physical');
+    setVariantProductType(plan.firstKind());
     setVariantWeightG('');
     setVariantAsset(null);
   };
@@ -450,8 +458,8 @@ export function Products({ canWrite = false }: { canWrite?: boolean } = {}) {
           >
             <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           </button>
-          <ImportProductsButton />
-          <ExportButton kind="products" />
+          <Feature name="import_export"><ImportProductsButton /></Feature>
+          <Feature name="import_export"><ExportButton kind="products" /></Feature>
           <button
             onClick={() => setCreateModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded font-semibold transition-colors"
@@ -800,7 +808,7 @@ export function Products({ canWrite = false }: { canWrite?: boolean } = {}) {
                   {t('products.variant.type')}
                 </label>
                 <div className="flex gap-2">
-                  {(['physical', 'digital', 'service'] as const).map((type) => (
+                  {(['physical', 'digital', 'service'] as const).filter((type) => plan.sellsKind(type) || (variantMode === 'edit' && type === variantProductType)).map((type) => (
                     <button
                       key={type}
                       type="button"

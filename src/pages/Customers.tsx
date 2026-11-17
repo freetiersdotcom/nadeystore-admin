@@ -23,6 +23,7 @@ import {
 import { api, Customer } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { ExportButton } from '../components/DataTransfer';
+import { Feature } from '../components/PlanGate';
 import { Modal } from '../components/Modal';
 import { cellLabel } from '../lib/table';
 import { useT } from '../lib/locale-context';
@@ -135,7 +136,7 @@ export function Customers() {
           {isFetching && !isLoading && (
             <Loader2 className="animate-spin" size={16} style={{ color: 'var(--text-muted)' }} />
           )}
-          <ExportButton kind="customers" />
+          <Feature name="import_export"><ExportButton kind="customers" /></Feature>
           <button
             onClick={() => { setErasedView((v) => !v); setSelectedCustomer(null); }}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs min-h-[36px]"

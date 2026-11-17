@@ -26,6 +26,7 @@ import { api, Order, RefundMethod } from '../lib/api';
 import { formatPrice } from '../lib/format';
 import { StatusBadge } from '../components/StatusBadge';
 import { OrdersExport } from '../components/DataTransfer';
+import { Feature } from '../components/PlanGate';
 import { Modal } from '../components/Modal';
 import { OrderProfit } from './OrderProfit';
 import { OrderSource } from './OrderSource';
@@ -297,7 +298,7 @@ export function Orders({ canCosts = false, canShop = false }: { canCosts?: boole
             <Plus size={14} />
             {t('orders.new')}
           </button>
-          <OrdersExport />
+          <Feature name="import_export"><OrdersExport /></Feature>
           <button
             onClick={() => setPlanSettingsOpen(true)}
             className="text-sm hover:underline"
@@ -484,7 +485,11 @@ export function Orders({ canCosts = false, canShop = false }: { canCosts?: boole
             <div><ReceiptButton key={`receipt-${selectedOrder.id}`} order={selectedOrder} canEditShop={canShop} /></div>
 
             {canCosts && <OrderSource key={`src-${selectedOrder.id}`} orderId={selectedOrder.id} />}
-            {canCosts && <OrderProfit key={`profit-${selectedOrder.id}`} orderId={selectedOrder.id} />}
+            {canCosts && (
+              <Feature name="profit">
+                <OrderProfit key={`profit-${selectedOrder.id}`} orderId={selectedOrder.id} />
+              </Feature>
+            )}
 
             {/* Payments: balance, history, record a payment */}
             <PaymentPanel

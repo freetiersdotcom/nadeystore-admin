@@ -10,6 +10,8 @@ import { BackupCard } from './Backups';
 import { ModulesCard } from './modules/ModulesCard';
 import { DeviceCard } from './DeviceCard';
 import { LaunchCard } from './LaunchCard';
+import { PlanCard, BrandingCard } from './PlanCard';
+import { Feature } from '../components/PlanGate';
 
 type Props = { me: Me; onSignedOut: () => void };
 
@@ -40,8 +42,14 @@ export function Team({ me, onSignedOut }: Props) {
       {canManage && <ApiKeys me={me} />}
       {canManage && <SetupChecklist />}
       {canManage && <LaunchCard />}
+      {canManage && <PlanCard />}
+      {me.permissions.includes('settings.manage') && <BrandingCard />}
       {me.permissions.includes('settings.manage') && <ModulesCard />}
-      {me.permissions.includes('settings.manage') && <BackupCard />}
+      {me.permissions.includes('settings.manage') && (
+        <Feature name="backup">
+          <BackupCard />
+        </Feature>
+      )}
       {me.user && <DeviceCard />}
       {me.user && <MyAccount onSignedOut={onSignedOut} />}
       {canAudit && <Audit />}
